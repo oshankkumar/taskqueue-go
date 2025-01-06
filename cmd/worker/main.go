@@ -33,7 +33,7 @@ func main() {
 			Message string    `json:"message"`
 			SendAt  time.Time `json:"send_at"`
 		}
-		if err := job.UnMarshalPayload(&payload); err != nil {
+		if err := job.JSONUnMarshalPayload(&payload); err != nil {
 			return err
 		}
 

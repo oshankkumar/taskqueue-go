@@ -25,5 +25,5 @@ go.work.sum
 .env
 
 .idea
-./cmd/enqueuer/enqueuer
-./cmd/worker/worker
+cmd/enqueuer/enqueuer
+cmd/worker/worker

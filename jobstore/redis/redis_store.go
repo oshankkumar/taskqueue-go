@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-	"time"
-
 	"github.com/oshankkumar/taskqueue-go"
 
 	"github.com/redis/go-redis/v9"
@@ -27,40 +24,40 @@ type Store struct {
 func (s *Store) CreateOrUpdate(ctx context.Context, job *taskqueue.Job) error {
 	key := redisJobKey(s.Namespace, job.ID)
 
-	var failureReason string
-	if job.FailureReason != nil {
-		failureReason = job.FailureReason.Error()
+	redisJob := Job{
+		ID:            job.ID,
+		QueueName:     job.QueueName,
+		Payload:       job.Payload,
+		CreatedAt:     job.CreatedAt,
+		StartedAt:     job.StartedAt,
+		UpdatedAt:     job.UpdatedAt,
+		Attempts:      job.Attempts,
+		Status:        JobStatus(job.Status),
+		FailureReason: JobError{Err: job.FailureReason},
+		ProcessedBy:   job.ProcessedBy,
 	}
 
-	fields := map[string]interface{}{
-		"id":             job.ID,
-		"queue_name":     job.QueueName,
-		"payload":        job.Payload,
-		"status":         job.Status.String(),
-		"created_at":     job.CreatedAt.Format(time.RFC3339),
-		"updated_at":     job.UpdatedAt.Format(time.RFC3339),
-		"started_at":     job.StartedAt.Format(time.RFC3339),
-		"attempts":       job.Attempts,
-		"failure_reason": failureReason,
-		"processed_by":   job.ProcessedBy,
-	}
+	_, err := s.client.TxPipelined(ctx, func(p redis.Pipeliner) error {
+		_, err := p.HSet(ctx, key, redisJob).Result()
+		if err != nil {
+			return err
+		}
 
-	_, err := s.client.HSet(ctx, key, fields).Result()
-	if err != nil {
-		return err
-	}
+		if job.Status == taskqueue.JobStatusDead {
+			return p.SAdd(ctx, redisDeadJobsSetKey(s.Namespace), job.ID).Err()
+		}
 
-	if job.Status == taskqueue.JobStatusDead {
-		return s.client.SAdd(ctx, redisDeadJobsSetKey(s.Namespace), job.ID).Err()
-	}
+		return nil
+	})
 
-	return nil
+	return err
 }
 
 func (s *Store) GetJob(ctx context.Context, jobID string) (*taskqueue.Job, error) {
 	key := redisJobKey(s.Namespace, jobID)
 
-	vals, err := s.client.HGetAll(ctx, key).Result()
+	var redisJob Job
+	err := s.client.HGetAll(ctx, key).Scan(&redisJob)
 	if errors.Is(err, redis.Nil) {
 		return nil, taskqueue.ErrJobNotFound
 	}
@@ -68,47 +65,17 @@ func (s *Store) GetJob(ctx context.Context, jobID string) (*taskqueue.Job, error
 		return nil, err
 	}
 
-	createdAt, err := time.Parse(time.RFC3339, vals["created_at"])
-	if err != nil {
-		return nil, err
-	}
-
-	updatedAt, err := time.Parse(time.RFC3339, vals["updated_at"])
-	if err != nil {
-		return nil, err
-	}
-
-	startedAt, err := time.Parse(time.RFC3339, vals["started_at"])
-	if err != nil {
-		return nil, err
-	}
-
-	attempts, err := strconv.Atoi(vals["attempts"])
-	if err != nil {
-		return nil, err
-	}
-
-	var failureReason error
-	if vals["failure_reason"] != "" {
-		failureReason = errors.New(vals["failure_reason"])
-	}
-
-	status, err := taskqueue.ParseJobStatus(vals["status"])
-	if err != nil {
-		return nil, err
-	}
-
 	return &taskqueue.Job{
-		ID:            vals["id"],
-		QueueName:     vals["queue_name"],
-		Payload:       []byte(vals["payload"]),
-		CreatedAt:     createdAt,
-		StartedAt:     startedAt,
-		UpdatedAt:     updatedAt,
-		Attempts:      attempts,
-		FailureReason: failureReason,
-		Status:        status,
-		ProcessedBy:   vals["processed_by"],
+		ID:            redisJob.ID,
+		QueueName:     redisJob.QueueName,
+		Payload:       redisJob.Payload,
+		CreatedAt:     redisJob.CreatedAt,
+		StartedAt:     redisJob.StartedAt,
+		UpdatedAt:     redisJob.UpdatedAt,
+		Attempts:      redisJob.Attempts,
+		FailureReason: redisJob.FailureReason.Err,
+		Status:        taskqueue.JobStatus(redisJob.Status),
+		ProcessedBy:   redisJob.ProcessedBy,
 	}, nil
 }
 

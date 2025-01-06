@@ -59,31 +59,18 @@ func (q *Queue) Dequeue(ctx context.Context, opts *taskqueue.DequeueOptions, cou
 		int64((opts.JobTimeout + 2*time.Second).Seconds()),
 		count,
 	}
-	res, err := q.dequeueScript.Run(
+
+	jobIDs, err := Strings(q.dequeueScript.Run(
 		ctx,
 		q.client,
 		keys,
 		args...,
-	).Result()
+	).Result())
 	if errors.Is(err, redis.Nil) {
 		return nil, taskqueue.ErrQueueEmpty
 	}
 	if err != nil {
 		return nil, err
-	}
-
-	ids, ok := res.([]interface{})
-	if !ok {
-		return nil, taskqueue.ErrUnknown
-	}
-
-	var jobIDs []string
-	for _, id := range ids {
-		jobID, ok := id.(string)
-		if !ok {
-			return nil, taskqueue.ErrUnknown
-		}
-		jobIDs = append(jobIDs, jobID)
 	}
 
 	return jobIDs, nil
@@ -112,4 +99,26 @@ func redisQueueKey(ns string, queue string) string {
 
 func redisKeyQueuesSet(ns string) string {
 	return ns + ":queues"
+}
+
+func Strings(i interface{}, err error) ([]string, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	vv, ok := i.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid type: %T expected to be a []interface{}", i)
+	}
+
+	ss := make([]string, 0, len(vv))
+	for _, v := range vv {
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid type: %T expected to be a string", v)
+		}
+		ss = append(ss, s)
+	}
+
+	return ss, nil
 }

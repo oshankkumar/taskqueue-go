@@ -26,7 +26,7 @@ func main() {
 	}
 
 	job := taskqueue.NewJob()
-	err := job.MarshalPayload(struct {
+	err := job.JSONMarshalPayload(struct {
 		Sender  string    `json:"sender"`
 		Message string    `json:"message"`
 		SendAt  time.Time `json:"send_at"`

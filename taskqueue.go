@@ -26,7 +26,7 @@ func (err QueueError) Error() string {
 	}[err]
 }
 
-type JobStatus int
+type JobStatus int8
 
 const (
 	JobStatusWaiting JobStatus = iota + 1
@@ -66,16 +66,16 @@ func ParseJobStatus(text string) (JobStatus, error) {
 }
 
 type Job struct {
-	ID            string    `json:"id"`
-	QueueName     string    `json:"queue_name"`
-	Payload       []byte    `json:"payload"`
-	CreatedAt     time.Time `json:"created_at"`
-	StartedAt     time.Time `json:"processing_started_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	Attempts      int       `json:"attempts"`
-	FailureReason error     `json:"failure_reason,omitempty"`
-	Status        JobStatus `json:"status"`
-	ProcessedBy   string    `json:"processed_by"`
+	ID            string
+	QueueName     string
+	Payload       []byte
+	CreatedAt     time.Time
+	StartedAt     time.Time
+	UpdatedAt     time.Time
+	Attempts      int
+	FailureReason error
+	Status        JobStatus
+	ProcessedBy   string
 }
 
 func NewJob() *Job {
@@ -86,12 +86,12 @@ func NewJob() *Job {
 	}
 }
 
-func (j *Job) MarshalPayload(v any) (err error) {
+func (j *Job) JSONMarshalPayload(v any) (err error) {
 	j.Payload, err = json.Marshal(v)
 	return
 }
 
-func (j *Job) UnMarshalPayload(v any) error {
+func (j *Job) JSONUnMarshalPayload(v any) error {
 	return json.Unmarshal(j.Payload, v)
 }
 

@@ -43,11 +43,12 @@ func TestStore_CreateOrUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	job, err := store.GetJob(context.Background(), "1234567")
+	job, err := store.GetJob(context.Background(), "01JGXF9RW2H0JW5DXKEH0HRS7E")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Logf("%#v", job)
 	t.Log(string(job.Payload))
+	t.Log(job.FailureReason)
 }
