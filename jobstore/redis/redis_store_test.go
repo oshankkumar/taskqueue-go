@@ -2,53 +2,64 @@ package redis
 
 import (
 	"context"
-	"github.com/oshankkumar/taskqueue-go"
-	"github.com/redis/go-redis/v9"
+	"crypto/rand"
+	"os"
 	"testing"
 	"time"
+
+	"github.com/oshankkumar/taskqueue-go"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/redis/go-redis/v9"
 )
 
-func TestStore_CreateOrUpdate(t *testing.T) {
-	c := redis.NewClient(&redis.Options{
-		Addr: ":7379",
-	})
+func TestStoreCreateOrUpdate(t *testing.T) {
+	t.Setenv("REDIS_ADDR", "localhost:7379")
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		t.Skip("skipping test since REDIS_ADDR is not set")
+	}
 
-	store := NewStore(c, "")
+	client := redis.NewClient(&redis.Options{Addr: redisAddr})
+	store := NewStore(client, "test")
 
-	payload := `{
-    "guid": "25f5efc6-ddd8-4b2c-ae7a-4fc012c13bb8",
-    "isActive": true,
-    "balance": "$3,132.90",
-    "picture": "http://placehold.it/32x32",
-    "age": 39,
-    "eyeColor": "brown",
-    "name": "Lavonne Garner",
-    "gender": "female",
-    "company": "INSOURCE"
-}`
-	err := store.CreateOrUpdate(context.Background(), &taskqueue.Job{
-		ID:            "1234567",
-		QueueName:     "ns:queue:myqueue",
-		Payload:       []byte(payload),
-		CreatedAt:     time.Now().Add(-time.Second * 10),
-		StartedAt:     time.Now(),
-		UpdatedAt:     time.Now().Add(time.Second * 10),
-		Attempts:      1,
-		FailureReason: taskqueue.ErrQueueEmpty,
+	var payload [32]byte
+	if _, err := rand.Read(payload[:]); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Date(2025, 1, 1, 1, 10, 0, 0, time.UTC)
+
+	job := &taskqueue.Job{
+		ID:            "test-id1",
+		QueueName:     "test_queue",
+		Payload:       payload[:],
+		CreatedAt:     now,
+		StartedAt:     now,
+		UpdatedAt:     now,
+		Attempts:      2,
+		FailureReason: taskqueue.ErrJobNotFound,
 		Status:        taskqueue.JobStatusActive,
-		ProcessedBy:   "w1",
+		ProcessedBy:   "test-worker-1",
+	}
+
+	if err := store.CreateOrUpdate(context.Background(), job); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := store.GetJob(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	equateErrorMessage := cmp.Comparer(func(x, y error) bool {
+		if x == nil || y == nil {
+			return x == nil && y == nil
+		}
+		return x.Error() == y.Error()
 	})
 
-	if err != nil {
-		t.Fatal(err)
+	if !cmp.Equal(job, got, equateErrorMessage) {
+		t.Errorf("job does not match the expected one. Diff:\n%s", cmp.Diff(job, got))
 	}
-
-	job, err := store.GetJob(context.Background(), "01JGXF9RW2H0JW5DXKEH0HRS7E")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Logf("%#v", job)
-	t.Log(string(job.Payload))
-	t.Log(job.FailureReason)
 }
