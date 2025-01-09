@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/oshankkumar/taskqueue-go"
+	"github.com/oshankkumar/taskqueue-go/redisutil"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -60,7 +61,7 @@ func (q *Queue) Dequeue(ctx context.Context, opts *taskqueue.DequeueOptions, cou
 		count,
 	}
 
-	jobIDs, err := Strings(q.dequeueScript.Run(
+	jobIDs, err := redisutil.Strings(q.dequeueScript.Run(
 		ctx,
 		q.client,
 		keys,
@@ -83,42 +84,51 @@ func (q *Queue) Ack(ctx context.Context, jobID string, opts *taskqueue.AckOption
 }
 
 func (q *Queue) Nack(ctx context.Context, jobID string, opts *taskqueue.NackOptions) error {
-	queueKey := redisQueueKey(q.namespace, opts.QueueName)
+	if opts.MaxAttemptsExceeded {
+		return q.nackDead(ctx, jobID, opts)
+	}
+	return q.nack(ctx, jobID, opts)
+}
 
-	_, err := q.client.ZAddXX(ctx, queueKey, redis.Z{
-		Score:  float64(time.Now().Add(opts.RetryAfter).Unix()),
-		Member: jobID,
-	}).Result()
+func (q *Queue) nackDead(ctx context.Context, jobID string, opts *taskqueue.NackOptions) error {
+	_, err := q.client.TxPipelined(ctx, func(p redis.Pipeliner) error {
+		queueKey := redisQueueKey(q.namespace, opts.QueueName)
+		deadQueueKey := redisKeyDeadQueue(q.namespace, opts.QueueName)
 
+		if err := p.ZRem(ctx, queueKey, jobID).Err(); err != nil {
+			return err
+		}
+
+		if err := p.SAdd(ctx, deadQueueKey, jobID).Err(); err != nil {
+			return err
+		}
+
+		return p.SAdd(ctx, redisKeyDeadQueuesSet(q.namespace), deadQueueKey).Err()
+	})
 	return err
 }
 
-func redisQueueKey(ns string, queue string) string {
-	return fmt.Sprintf("%s:queue:%s", ns, queue)
+func (q *Queue) nack(ctx context.Context, jobID string, opts *taskqueue.NackOptions) error {
+	queueKey := redisQueueKey(q.namespace, opts.QueueName)
+
+	return q.client.ZAddXX(ctx, queueKey, redis.Z{
+		Score:  float64(time.Now().Add(opts.RetryAfter).Unix()),
+		Member: jobID,
+	}).Err()
+}
+
+func redisKeyDeadQueuesSet(ns string) string {
+	return ns + ":dead-queues"
 }
 
 func redisKeyQueuesSet(ns string) string {
 	return ns + ":queues"
 }
 
-func Strings(i interface{}, err error) ([]string, error) {
-	if err != nil {
-		return nil, err
-	}
+func redisQueueKey(ns string, queue string) string {
+	return fmt.Sprintf("%s:queue:%s", ns, queue)
+}
 
-	vv, ok := i.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid type: %T expected to be a []interface{}", i)
-	}
-
-	ss := make([]string, 0, len(vv))
-	for _, v := range vv {
-		s, ok := v.(string)
-		if !ok {
-			return nil, fmt.Errorf("invalid type: %T expected to be a string", v)
-		}
-		ss = append(ss, s)
-	}
-
-	return ss, nil
+func redisKeyDeadQueue(ns string, queue string) string {
+	return redisQueueKey(ns, queue) + ":dead"
 }

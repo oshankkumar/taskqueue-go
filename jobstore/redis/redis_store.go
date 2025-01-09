@@ -38,20 +38,7 @@ func (s *Store) CreateOrUpdate(ctx context.Context, job *taskqueue.Job) error {
 		ProcessedBy:   job.ProcessedBy,
 	}
 
-	_, err := s.client.TxPipelined(ctx, func(p redis.Pipeliner) error {
-		_, err := p.HSet(ctx, key, redisJob).Result()
-		if err != nil {
-			return err
-		}
-
-		if job.Status == taskqueue.JobStatusDead {
-			return p.SAdd(ctx, redisDeadJobsSetKey(s.Namespace), job.ID).Err()
-		}
-
-		return nil
-	})
-
-	return err
+	return s.client.HSet(ctx, key, redisJob).Err()
 }
 
 func (s *Store) GetJob(ctx context.Context, jobID string) (*taskqueue.Job, error) {
@@ -102,8 +89,4 @@ func (s *Store) UpdateJobStatus(ctx context.Context, jobID string, status taskqu
 
 func redisJobKey(ns string, jobID string) string {
 	return fmt.Sprintf("%s:job:%s", ns, jobID)
-}
-
-func redisDeadJobsSetKey(ns string) string {
-	return fmt.Sprintf("%s:dead-jobs", ns)
 }

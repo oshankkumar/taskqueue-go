@@ -266,32 +266,30 @@ func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) erro
 		return err
 	}
 
-	ackOpts := &AckOptions{
-		QueueName: h.queueName,
+	switch {
+	case job.FailureReason == nil:
+		job.Status = JobStatusCompleted
+	case job.Attempts >= h.jobOptions.MaxAttempts:
+		job.Status = JobStatusDead
+	default:
+		job.Status = JobStatusFailed
 	}
 
-	if job.FailureReason == nil {
-		if err := w.JobStore.UpdateJobStatus(ctx, job.ID, JobStatusCompleted); err != nil {
-			return err
-		}
-		return w.Queue.Ack(ctx, job.ID, ackOpts)
-	}
-
-	if job.Attempts >= h.jobOptions.MaxAttempts {
-		if err := w.JobStore.UpdateJobStatus(ctx, job.ID, JobStatusDead); err != nil {
-			return err
-		}
-		return w.Queue.Ack(ctx, job.ID, ackOpts)
-	}
-
-	if err := w.JobStore.UpdateJobStatus(ctx, job.ID, JobStatusFailed); err != nil {
+	if err := w.JobStore.UpdateJobStatus(ctx, job.ID, job.Status); err != nil {
 		return err
 	}
 
-	return w.Queue.Nack(ctx, job.ID, &NackOptions{
-		QueueName:  h.queueName,
-		RetryAfter: h.jobOptions.BackoffFunc(job.Attempts),
-	})
+	if job.FailureReason == nil {
+		return w.Queue.Ack(ctx, job.ID, &AckOptions{QueueName: h.queueName})
+	}
+
+	nackOpts := &NackOptions{
+		QueueName:           h.queueName,
+		RetryAfter:          h.jobOptions.BackoffFunc(job.Attempts),
+		MaxAttemptsExceeded: job.Attempts >= h.jobOptions.MaxAttempts,
+	}
+
+	return w.Queue.Nack(ctx, job.ID, nackOpts)
 }
 
 func (w *Worker) Stop() {
