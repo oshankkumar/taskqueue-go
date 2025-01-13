@@ -133,14 +133,48 @@ type Acker interface {
 	Nack(ctx context.Context, jobID string, opts *NackOptions) error
 }
 
+type QueueStatus int
+
+const (
+	QueueStatusUnknown QueueStatus = iota
+	QueueStatusPaused
+	QueueStatusRunning
+)
+
+type QueueDetails struct {
+	NameSpace  string
+	Name       string
+	JobCount   int
+	Status     QueueStatus
+	Pagination Pagination
+	JobIDs     []string
+}
+
+type Pagination struct {
+	Page      int
+	RowsCount int
+}
+
+type QueueInfo struct {
+	NameSpace string
+	Name      string
+	JobCount  int
+	Status    QueueStatus
+}
+
+type QueueManager interface {
+	PauseQueue(ctx context.Context, queueName string) error
+	ResumeQueue(ctx context.Context, queueName string) error
+	ListPendingQueues(ctx context.Context) ([]*QueueInfo, error)
+	PendingQueueInfo(ctx context.Context, queueName string) (*QueueInfo, error)
+	PagePendingQueue(ctx context.Context, queueName string, p Pagination) (*QueueDetails, error)
+}
+
 type Queue interface {
 	Enqueuer
 	Dequeuer
-}
-
-type AckableQueue interface {
-	Queue
 	Acker
+	QueueManager
 }
 
 var ErrJobNotFound = errors.New("job not found")
