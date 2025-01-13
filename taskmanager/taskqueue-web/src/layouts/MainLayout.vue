@@ -78,7 +78,7 @@ const menuList = [
     },
     {
         icon: 'list',
-        label: 'Jobs',
+        label: 'Queues',
         separator: false,
         submenu: [
             {
@@ -86,7 +86,7 @@ const menuList = [
                 label: 'Pending',
                 iconColor: 'secondary',
                 separator: false,
-                route: '/queues',
+                route: '/pending-queues',
                 active: false,
             },
             {

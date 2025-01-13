@@ -77,7 +77,9 @@
 
                 <!-- Argument -->
                 <q-td key="arg" :props="props" class="text-left">
-                  <pre class="q-mb-none"><code class="json">{{ formatArgument(props.row.arg) }}</code></pre>
+                  <pre class="bg-grey-2 q-mb-none"
+                       style="max-width: 400px; cursor: pointer; border-radius: 8px; font-family: monospace;"><code
+                    class="json">{{ formatArgument(props.row.arg) }}</code></pre>
                 </q-td>
 
                 <!-- Started -->
@@ -102,6 +104,18 @@
                   </q-chip>
                 </q-td>
 
+                <!-- Failure Reason -->
+                <q-td key="failureReason" :props="props" class="text-left">
+                  <q-tooltip>
+                    {{ props.row.failureReason }}
+                  </q-tooltip>
+                  <pre class="bg-grey-2 q-mb-none"
+                       style="max-width: 400px; cursor: pointer; border-radius: 8px; font-family: monospace;">
+                    <code class="text-negative">{{ props.row.failureReason }}</code>
+                  </pre>
+                </q-td>
+
+                <!-- Action Buttons -->
                 <q-td key="action" :props="props" class="text-left">
                   <div class="q-gutter-sm flex justify-center">
                     <!-- Re-enqueue Button -->
@@ -151,35 +165,67 @@ const testData = [
     arg: {name: 'Oshank', email: 'oshankfriends@gmail.com'},
     started: new Date(),
     queued: new Date(),
-    status: 'Failed'
+    status: 'Failed',
+    failureReason: 'Error: Unable to establish a connection to the database. The request timed out after 30 seconds. Please check your database server configuration and ensure that it is reachable from the current network environment. Ensure that the database credentials provided are correct and that there are no firewall rules blocking access. If the issue persists, consult the system administrator or check the database logs for more detailed information about the failure.',
   },
   {
     jobID: "23456",
-    arg: {name: 'Niket', email: 'niket1994@gmail.com'},
+    arg: {
+      id: 2937,
+      name: "Item 72",
+      isActive: true,
+      price: "42.75",
+      tags: "sale",
+      details: {
+        description: "This is a random description for item 42",
+        dateAdded: "2025-01-13T12:34:56.789Z",
+        quantity: 412
+      },
+      attributes: {
+        weight: "2.53",
+        dimensions: "24.51 x 35.12 x 47.73 cm"
+      },
+      customerReviews: [
+        {
+          reviewer: "User 54",
+          rating: 4,
+          comment: "This is a comment for item 62"
+        },
+        {
+          reviewer: "User 21",
+          rating: 5,
+          comment: "This is another comment for item 17"
+        }
+      ]
+    },
     started: new Date(),
     queued: new Date(),
-    status: 'Waiting'
+    status: 'Waiting',
+    failureReason: 'Error: File upload failed. The uploaded file exceeds the maximum allowed size of 10MB. Please reduce the size of the file and try again. If the issue persists, verify the file format and ensure that the file is not corrupted or damaged. If uploading multiple files, ensure that none of the files exceed the allowed limit. Please check your internet connection for any interruptions during the upload process.\n',
   },
   {
     jobID: "34567",
     arg: {name: 'Resham', email: 'resham1997@gmail.com'},
     started: new Date(),
     queued: new Date(),
-    status: 'Active'
+    status: 'Active',
+    failureReason: 'Error: Authentication failed due to invalid credentials. The username or password provided is incorrect. Please double-check the entered information and try again. If you have forgotten your password, use the "Forgot Password" option to reset it. Ensure that your account is active and has the appropriate permissions for accessing the requested resources. If you continue to encounter issues, please contact customer support for assistance.\n',
   },
   {
     jobID: "45678",
     arg: {name: 'Random', email: 'resham1997@gmail.com'},
     started: new Date(),
     queued: new Date(),
-    status: 'Dead'
+    status: 'Dead',
+    failureReason: 'Error: API rate limit exceeded. You have made too many requests in a short period of time and have exceeded the allowed threshold. Please wait for 60 seconds before making additional requests. If you are using an automated system, consider implementing a delay or backoff strategy to prevent hitting the rate limits. For more information, refer to the API documentation for rate limiting details and best practices.\n'
   },
   {
     jobID: "56789",
     arg: {name: 'Allen', email: 'resham1997@gmail.com'},
     started: new Date(),
     queued: new Date(),
-    status: 'Completed'
+    status: 'Completed',
+    failureReason: 'Error: You do not have permission to perform this action. The current user account is not authorized to access the requested resource or perform the desired operation. Please ensure that your user account has the necessary permissions assigned by the system administrator. If you believe this is an error, contact the administrator to request access or check the user roles and permissions configuration.\n',
   },
 ];
 
@@ -198,18 +244,18 @@ export default {
       loading: false,
       columns: [
         {name: 'jobID', label: 'ID', align: 'left', field: 'jobID'},
-        {name: 'arg', label: 'Argument', align: 'right', field: 'arg'},
-        {name: 'started', label: 'Started', align: 'right', field: 'started'},
-        {name: 'queued', label: 'Queued', align: 'right', field: 'Queued'},
+        {name: 'arg', label: 'Argument', align: 'left', field: 'arg'},
+        {name: 'started', label: 'Started', align: 'left', field: 'started'},
+        {name: 'queued', label: 'Queued', align: 'left', field: 'Queued'},
       ],
       pagination: {page: 1, rowsPerPage: 10, rowsNumber: 0}
     };
   },
   computed: {
     queueType() {
-      if (this.queueName.endsWith(':dead')) {
+      if (this.$route.path.startsWith('/dead-queues')) {
         return 'Dead';
-      } else if (this.queueName.endsWith(':completed')) {
+      } else if (this.$route.path.startsWith('/complete-queues')) {
         return 'Completed';
       } else {
         return 'Pending';
@@ -217,7 +263,10 @@ export default {
     },
     tableColumns() {
       if (this.queueType === 'Dead') {
-        return this.columns.concat([{name: 'action', label: 'Action', align: 'center', field: 'action'}]);
+        return this.columns.concat([
+          {name: 'failureReason', label: 'Failure Reason', align: 'left', field: 'failureReason'},
+          {name: 'action', label: 'Action', align: 'center', field: 'action'}
+        ]);
       }
       return this.columns.concat([{name: 'status', label: 'Status', align: 'right', field: 'status'}]);
     }
@@ -245,7 +294,7 @@ export default {
     },
     formatArgument(arg) {
       try {
-        return JSON.stringify(arg, null, 0); // Pretty print JSON
+        return JSON.stringify(arg, null, 2); // Pretty print JSON
       } catch (e) {
         console.error(e);
         return String(arg); // Fallback for invalid JSON
@@ -330,4 +379,11 @@ pre {
   border-radius: 4px;
   overflow-x: auto;
 }
+
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 </style>

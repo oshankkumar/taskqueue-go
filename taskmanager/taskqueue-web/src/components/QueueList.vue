@@ -8,15 +8,15 @@
         <q-card-section class="text-h6 q-pb-none">
           <q-item>
             <q-item-section avatar class="">
-              <q-icon color="blue" name="fa fa-stream" size="44px"/>
+              <q-icon :color="queueIconColor" :name="queueIcon" size="44px"/>
             </q-item-section>
 
             <q-item-section>
               <q-item-label>
-                <div class="text-h6">{{title}}</div>
+                <div class="text-h6">{{ title }}</div>
               </q-item-label>
               <q-item-label caption class="text-black">
-                Monitoring Your Queues.
+                Monitoring Your {{ queueType }} Queues.
               </q-item-label>
             </q-item-section>
           </q-item>
@@ -26,7 +26,7 @@
         <q-card-section>
           <q-table
             :rows="queueData"
-            :columns="columns"
+            :columns="tableColumns"
             row-key="queueName"
             :rows-per-page-options="[5, 10, 20, 50]"
             class="my-table full-width"
@@ -72,8 +72,6 @@
           </q-table>
         </q-card-section>
       </q-card>
-
-
     </div>
   </div>
 </template>
@@ -87,34 +85,33 @@ export default {
       required: true,
     },
     title: String,
+    queueType: String,
   },
   data() {
     return {
       columns: [
-        {
-          name: 'queueName',
-          label: 'Queue Name',
-          align: 'left',
-          field: 'queueName'
-        },
-        {
-          name: 'jobCount',
-          label: 'Job Count',
-          align: 'right',
-          field: 'jobCount'
-        },
-        {
-          name: 'status',
-          label: 'Status',
-          align: 'right',
-          field: 'status'
-        }
+        {name: 'queueName', label: 'Queue Name', align: 'left', field: 'queueName'},
+        {name: 'jobCount', label: 'Job Count', align: 'right', field: 'jobCount'},
       ],
       pagination: {
         page: 1,
         rowsPerPage: 10
       }
     };
+  },
+  computed: {
+    queueIconColor() {
+      return this.queueType === 'Pending' ? 'secondary' : this.queueType === 'Completed' ? 'positive' : 'negative';
+    },
+    queueIcon() {
+      return this.queueType === 'Pending' ? 'pending' : this.queueType === 'Completed' ? 'check_circle' : 'cancel'
+    },
+    tableColumns() {
+      if (this.queueType === 'Pending') {
+        return this.columns.concat([{name: 'status', label: 'Status', align: 'right', field: 'status'}]);
+      }
+      return this.columns;
+    }
   },
   methods: {
     // Handle pagination request
@@ -125,7 +122,13 @@ export default {
     },
     // Navigate to specific queue route on row click
     navigateToQueue(queueName) {
-      this.$router.push(`/queues/${queueName}`);
+      if (this.queueType === 'Pending') {
+        this.$router.push(`/pending-queues/${queueName}`);
+      } else if (this.queueType === 'Completed') {
+        this.$router.push(`/completed-queues/${queueName}`);
+      } else {
+        this.$router.push(`/dead-queues/${queueName}`);
+      }
     }
   }
 };

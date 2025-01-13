@@ -44,7 +44,7 @@ func (n NoOpInternalLogger) Infof(format string, args ...interface{})  {}
 
 type WorkerOptions struct {
 	ID             string
-	Queue          AckableQueue
+	Queue          Queue
 	JobStore       JobStore
 	ErrorHandler   func(err error)
 	InternalLogger InternalLogger
@@ -77,7 +77,7 @@ func NewWorker(opts *WorkerOptions) *Worker {
 
 type Worker struct {
 	ID             string
-	Queue          AckableQueue
+	Queue          Queue
 	JobStore       JobStore
 	ErrorHandler   func(err error)
 	InternalLogger InternalLogger

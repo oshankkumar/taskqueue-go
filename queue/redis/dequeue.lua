@@ -8,6 +8,11 @@ local invisibility_duration = tonumber(ARGV[2]) -- Invisibility duration in seco
 local count = tonumber(ARGV[3])           -- Number of jobs to dequeue
 local queue_key = KEYS[1]                 -- The Redis key for the sorted set
 
+local pauseKey = queue .. ':pause'
+if redis.call('EXISTS', pauseKey) == 1 then
+    return nil
+end
+
 -- Fetch the specified number of job IDs with the smallest scores <= curr_time
 local job_ids = redis.call("ZRANGEBYSCORE", queue_key, "-inf", curr_time, "LIMIT", 0, count)
 
