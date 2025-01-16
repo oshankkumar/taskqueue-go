@@ -97,14 +97,6 @@ const menuList = [
                 route: '/dead-queues',
                 active: false,
             },
-            {
-                icon: 'check_circle',
-                label: 'Completed',
-                iconColor: 'positive',
-                separator: false,
-                route: '/completed-queues',
-                active: false,
-            }
         ]
     },
     {

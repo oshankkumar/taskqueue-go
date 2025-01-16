@@ -16,13 +16,15 @@ type QueueError int
 
 const (
 	ErrUnknown QueueError = iota
+	ErrQueueNotFound
 	ErrQueueEmpty
 )
 
 func (err QueueError) Error() string {
 	return [...]string{
-		ErrUnknown:    "unknown error occurred",
-		ErrQueueEmpty: "Queue is empty",
+		ErrUnknown:       "unknown error occurred",
+		ErrQueueNotFound: "queue not found",
+		ErrQueueEmpty:    "Queue is empty",
 	}[err]
 }
 
@@ -38,11 +40,11 @@ const (
 
 func (j JobStatus) String() string {
 	return []string{
-		JobStatusWaiting:   "waiting",
-		JobStatusActive:    "active",
-		JobStatusCompleted: "completed",
-		JobStatusFailed:    "failed",
-		JobStatusDead:      "dead",
+		JobStatusWaiting:   "Waiting",
+		JobStatusActive:    "Active",
+		JobStatusCompleted: "Completed",
+		JobStatusFailed:    "Failed",
+		JobStatusDead:      "Dead",
 	}[j]
 }
 
@@ -50,15 +52,15 @@ var ErrInvalidJobStatus = errors.New("invalid job status")
 
 func ParseJobStatus(text string) (JobStatus, error) {
 	switch text {
-	case "waiting":
+	case "Waiting":
 		return JobStatusWaiting, nil
-	case "active":
+	case "Active":
 		return JobStatusActive, nil
-	case "completed":
+	case "Completed":
 		return JobStatusCompleted, nil
-	case "failed":
+	case "Failed":
 		return JobStatusFailed, nil
-	case "dead":
+	case "Dead":
 		return JobStatusDead, nil
 	default:
 		return -1, ErrInvalidJobStatus
@@ -73,7 +75,7 @@ type Job struct {
 	StartedAt     time.Time
 	UpdatedAt     time.Time
 	Attempts      int
-	FailureReason error
+	FailureReason string
 	Status        JobStatus
 	ProcessedBy   string
 }
@@ -97,6 +99,7 @@ func (j *Job) JSONUnMarshalPayload(v any) error {
 
 type EnqueueOptions struct {
 	QueueName string
+	Delay     time.Duration
 }
 
 type DequeueOptions struct {
@@ -141,6 +144,14 @@ const (
 	QueueStatusRunning
 )
 
+func (s QueueStatus) String() string {
+	return [...]string{
+		QueueStatusUnknown: "unknown",
+		QueueStatusPaused:  "Paused",
+		QueueStatusRunning: "Running",
+	}[s]
+}
+
 type QueueDetails struct {
 	NameSpace  string
 	Name       string
@@ -151,8 +162,8 @@ type QueueDetails struct {
 }
 
 type Pagination struct {
-	Page      int
-	RowsCount int
+	Page int
+	Rows int
 }
 
 type QueueInfo struct {
@@ -163,11 +174,13 @@ type QueueInfo struct {
 }
 
 type QueueManager interface {
-	PauseQueue(ctx context.Context, queueName string) error
-	ResumeQueue(ctx context.Context, queueName string) error
+	DeleteJobFromDeadQueue(ctx context.Context, queueName string, jobID string) error
+	PausePendingQueue(ctx context.Context, queueName string) error
+	ResumePendingQueue(ctx context.Context, queueName string) error
 	ListPendingQueues(ctx context.Context) ([]*QueueInfo, error)
-	PendingQueueInfo(ctx context.Context, queueName string) (*QueueInfo, error)
+	ListDeadQueues(ctx context.Context) ([]*QueueInfo, error)
 	PagePendingQueue(ctx context.Context, queueName string, p Pagination) (*QueueDetails, error)
+	PageDeadQueue(ctx context.Context, queueName string, p Pagination) (*QueueDetails, error)
 }
 
 type Queue interface {
@@ -186,17 +199,21 @@ type JobStore interface {
 	UpdateJobStatus(ctx context.Context, jobID string, status JobStatus) error
 }
 
+func NewEnqueuer(enq Enqueuer, store JobStore) *TaskEnqueuer {
+	return &TaskEnqueuer{enqueuer: enq, jobStore: store}
+}
+
 type TaskEnqueuer struct {
-	Enqueuer Enqueuer
-	JobStore JobStore
+	enqueuer Enqueuer
+	jobStore JobStore
 }
 
 func (t *TaskEnqueuer) Enqueue(ctx context.Context, job *Job, opts *EnqueueOptions) error {
 	job.QueueName = opts.QueueName
 
-	if err := t.JobStore.CreateOrUpdate(ctx, job); err != nil {
+	if err := t.jobStore.CreateOrUpdate(ctx, job); err != nil {
 		return err
 	}
 
-	return t.Enqueuer.Enqueue(ctx, job.ID, opts)
+	return t.enqueuer.Enqueue(ctx, job.ID, opts)
 }

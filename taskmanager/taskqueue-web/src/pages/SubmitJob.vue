@@ -19,12 +19,32 @@ export default {
   },
   data() {
     return {
-      availableQueues: [
-        {name: "Queue1"},
-        {name: "Queue2"},
-        {name: "Queue3"}
-      ],
+      loadingPendingQueues: false,
+      availableQueues: [],
     };
   },
+  mounted() {
+    this.fetchPendingQueues();
+  },
+  methods: {
+    async fetchPendingQueues() {
+      try {
+        this.loadingPendingQueues = true;
+        const data = await this.$taskManagerClient.listPendingQueues();
+        this.availableQueues = data.queues || [];
+      } catch (error) {
+        this.availableQueues = []
+        console.error(error)
+        this.$q.notify({
+          type: 'negative',
+          message: 'Failed to fetch pending queues.',
+          timeout: 3000,
+          icon: 'warning',
+        });
+      } finally {
+        this.loadingPendingQueues = false;
+      }
+    },
+  }
 };
 </script>

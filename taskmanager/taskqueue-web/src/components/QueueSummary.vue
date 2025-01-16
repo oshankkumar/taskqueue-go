@@ -22,14 +22,22 @@
 
 export default {
   name: "QueueSummary",
-  data() {
-    return {
-      queuesCount: 10,
-      pendingJobsCount: 50,
-      completedJobsCount: 60,
-      deadlineJobsCount: 50,
-      workerCount: 10,
+  props: {
+    pendingQueues: {
+      type: Array,
+      required: true,
+    },
+    deadQueues: {
+      type: Array,
+      required: true,
+    },
+    activeWorkersCount: {
+      type: Number,
+      required: true,
     }
+  },
+  data() {
+    return {}
   },
   computed: {
     items() {
@@ -37,42 +45,48 @@ export default {
         {
           title: "Active Workers",
           icon: "fas fa-cogs",
-          value: this.workerCount.toString(),
-          color: "#2196F3",
+          value: this.workerCount,
+          color: "#21ba45",
         },
         {
           title: "Total Queues",
           icon: "fas fa-stream",
-          value: this.queuesCount.toString(),
+          value: this.pendingQueuesCount,
           color: "#31ccec",
         },
         {
           title: "Pending Jobs",
           icon: "pending",
-          value: this.pendingJobsCount.toString(),
+          value: this.pendingJobsCount,
           color: "#26a69a",
-        },
-        {
-          title: "Completed Jobs",
-          icon: "check_circle",
-          value: this.completedJobsCount.toString(),
-          color: "#21ba45",
         },
         {
           title: "Dead Jobs",
           icon: "cancel",
-          value: this.deadlineJobsCount.toString(),
+          value: this.deadJobsCount,
           color: "#c10015",
         },
       ]
     },
-  }
+    workerCount() {
+      return this.activeWorkersCount.toString();
+    },
+    pendingQueuesCount() {
+      return this.pendingQueues.length.toString();
+    },
+    pendingJobsCount() {
+      return this.pendingQueues.reduce((total, queue) => total + queue.jobCount, 0).toString();
+    },
+    deadJobsCount() {
+      return this.deadQueues.reduce((total, queue) => total + queue.jobCount, 0).toString();
+    },
+  },
 }
 </script>
 
 <style scoped>
 .col-md-2-4 {
-  flex: 0 0 calc(100% / 5); /* Divide the row into 5 parts */
-  max-width: calc(100% / 5); /* Ensure it fits in one row */
+  flex: 0 0 calc(100% / 4); /* Divide the row into 5 parts */
+  max-width: calc(100% / 4); /* Ensure it fits in one row */
 }
 </style>

@@ -33,11 +33,83 @@ type Queue struct {
 	dequeueScript *redis.Script
 }
 
-func (q *Queue) PauseQueue(ctx context.Context, queueName string) error {
+func (q *Queue) DeleteJobFromDeadQueue(ctx context.Context, queueName string, jobID string) error {
+	queueKey := redisKeyDeadQueue(q.namespace, queueName)
+	return q.client.ZRem(ctx, queueKey, jobID).Err()
+}
+
+func (q *Queue) ListDeadQueues(ctx context.Context) ([]*taskqueue.QueueInfo, error) {
+	deadQueueSet := redisKeyDeadQueuesSet(q.namespace)
+	queues, err := q.client.SMembers(ctx, deadQueueSet).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*taskqueue.QueueInfo
+	for _, queue := range queues {
+		info, err := q.deadQueueInfo(ctx, queue)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, info)
+	}
+	return result, nil
+}
+
+func (q *Queue) deadQueueInfo(ctx context.Context, queueName string) (*taskqueue.QueueInfo, error) {
+	queueKey := redisKeyDeadQueue(q.namespace, queueName)
+
+	val, err := q.client.ZCard(ctx, queueKey).Result()
+	if errors.Is(err, redis.Nil) {
+		return nil, taskqueue.ErrQueueNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &taskqueue.QueueInfo{
+		NameSpace: q.namespace,
+		Name:      queueName,
+		JobCount:  int(val),
+	}, nil
+}
+
+func (q *Queue) PageDeadQueue(ctx context.Context, queueName string, p taskqueue.Pagination) (*taskqueue.QueueDetails, error) {
+	queueKey := redisKeyDeadQueue(q.namespace, queueName)
+	offset := (p.Page - 1) * p.Rows
+
+	jobIDs, err := q.client.ZRangeArgs(ctx, redis.ZRangeArgs{
+		Key:     queueKey,
+		Start:   "-inf",
+		Stop:    "+inf",
+		ByScore: true,
+		Offset:  int64(offset),
+		Count:   int64(p.Rows),
+	}).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := q.deadQueueInfo(ctx, queueName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &taskqueue.QueueDetails{
+		NameSpace:  q.namespace,
+		Name:       queueName,
+		JobCount:   info.JobCount,
+		Pagination: p,
+		JobIDs:     jobIDs,
+	}, nil
+
+}
+
+func (q *Queue) PausePendingQueue(ctx context.Context, queueName string) error {
 	return q.client.Set(ctx, redisKeyPendingQueuePause(q.namespace, queueName), "1", 0).Err()
 }
 
-func (q *Queue) ResumeQueue(ctx context.Context, queueName string) error {
+func (q *Queue) ResumePendingQueue(ctx context.Context, queueName string) error {
 	return q.client.Del(ctx, redisKeyPendingQueuePause(q.namespace, queueName)).Err()
 }
 
@@ -49,7 +121,7 @@ func (q *Queue) ListPendingQueues(ctx context.Context) ([]*taskqueue.QueueInfo, 
 
 	var results []*taskqueue.QueueInfo
 	for _, queue := range queues {
-		info, err := q.PendingQueueInfo(ctx, queue)
+		info, err := q.pendingQueueInfo(ctx, queue)
 		if err != nil {
 			return nil, err
 		}
@@ -59,10 +131,13 @@ func (q *Queue) ListPendingQueues(ctx context.Context) ([]*taskqueue.QueueInfo, 
 	return results, nil
 }
 
-func (q *Queue) PendingQueueInfo(ctx context.Context, queue string) (*taskqueue.QueueInfo, error) {
+func (q *Queue) pendingQueueInfo(ctx context.Context, queue string) (*taskqueue.QueueInfo, error) {
 	queueKey := redisKeyPendingQueue(q.namespace, queue)
 
 	card, err := q.client.ZCard(ctx, queueKey).Result()
+	if errors.Is(err, redis.Nil) {
+		return nil, taskqueue.ErrQueueNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -89,17 +164,21 @@ func (q *Queue) PendingQueueInfo(ctx context.Context, queue string) (*taskqueue.
 
 func (q *Queue) PagePendingQueue(ctx context.Context, queueName string, p taskqueue.Pagination) (*taskqueue.QueueDetails, error) {
 	queueKey := redisKeyPendingQueue(q.namespace, queueName)
-	offset := (p.Page - 1) * p.RowsCount
+	offset := (p.Page - 1) * p.Rows
 
-	jobIDs, err := q.client.ZRangeByScore(ctx, queueKey, &redis.ZRangeBy{
-		Min: "-inf", Max: "+inf",
-		Offset: int64(offset), Count: int64(p.RowsCount),
+	jobIDs, err := q.client.ZRangeArgs(ctx, redis.ZRangeArgs{
+		Key:     queueKey,
+		Start:   "-inf",
+		Stop:    "+inf",
+		ByScore: true,
+		Offset:  int64(offset),
+		Count:   int64(p.Rows),
 	}).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	info, err := q.PendingQueueInfo(ctx, queueName)
+	info, err := q.pendingQueueInfo(ctx, queueName)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +198,7 @@ func (q *Queue) Enqueue(ctx context.Context, jobID string, opts *taskqueue.Enque
 		queueKey := redisKeyPendingQueue(q.namespace, opts.QueueName)
 
 		err := p.ZAdd(ctx, queueKey, redis.Z{
-			Score:  float64(time.Now().Unix()),
+			Score:  float64(time.Now().Add(opts.Delay).Unix()),
 			Member: jobID,
 		}).Err()
 		if err != nil {
@@ -188,7 +267,7 @@ func (q *Queue) nackDead(ctx context.Context, jobID string, opts *taskqueue.Nack
 			return err
 		}
 
-		return p.SAdd(ctx, redisKeyDeadQueuesSet(q.namespace), deadQueueKey).Err()
+		return p.SAdd(ctx, redisKeyDeadQueuesSet(q.namespace), opts.QueueName).Err()
 	})
 	return err
 }

@@ -32,28 +32,25 @@ package main
 
 import (
 	"context"
+
 	"github.com/oshankkumar/taskqueue-go"
 	"github.com/redis/go-redis/v9"
-
-	redisjs "github.com/oshankkumar/taskqueue-go/jobstore/redis"
-	redisq "github.com/oshankkumar/taskqueue-go/queue/redis"
+	redisq "github.com/oshankkumar/taskqueue-go/redis"
 )
 
 const ns = "taskqueue"
 
 func main() {
 	rc := redis.NewClient(&redis.Options{Addr: ":7379"})
-	q := redisq.NewQueue(rc, ns)
-	store := redisjs.NewStore(rc, ns)
-
+	
 	// Initialize Redis-backed enqueuer
-	enqueuer := &taskqueue.TaskEnqueuer{
-		Enqueuer: q,
-		JobStore: store,
-	}
+	enq := taskqueue.NewEnqueuer(
+		redisq.NewQueue(rc, ns),
+		redisq.NewStore(rc, ns),
+	)
 
 	job := taskqueue.NewJob()
-	err := job.MarshalPayload(map[string]string{
+	err := job.JSONMarshalPayload(map[string]string{
 		"to":      "user@example.com",
 		"subject": "Welcome!",
 	})
@@ -62,8 +59,8 @@ func main() {
 	}
 
 	err = enq.Enqueue(context.Background(), job, &taskqueue.EnqueueOptions{
-		QueueName: "email-jobs",
-	})
+		QueueName: "email_jobs",
+    })
 
 	if err != nil {
 		panic(err)
@@ -80,28 +77,26 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/oshankkumar/taskqueue-go"
-	"github.com/redis/go-redis/v9"
 	"os"
 	"os/signal"
 
-	redisjs "github.com/oshankkumar/taskqueue-go/jobstore/redis"
-	redisq "github.com/oshankkumar/taskqueue-go/queue/redis"
+	"github.com/oshankkumar/taskqueue-go"
+	"github.com/redis/go-redis/v9"
+	redisq "github.com/oshankkumar/taskqueue-go/redis"
 )
 
 const ns = "taskqueue"
 
 func main() {
 	rc := redis.NewClient(&redis.Options{Addr: ":7379"})
-	q := redisq.NewQueue(rc, ns)
-	store := redisjs.NewStore(rc, ns)
-
+	
 	worker := taskqueue.NewWorker(&taskqueue.WorkerOptions{
-		Queue:    q,
-		JobStore: store,
+		Queue:       redisq.NewQueue(rc, ns),
+		JobStore:    redisq.NewStore(rc, ns),
+		HeartBeater: redisq.NewHeartBeater(rc, ns),
 	})
 
-	worker.RegisterHandler("msg_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
+	worker.RegisterHandler("email_jobs", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
 		fmt.Printf("Processing job: %+v\n", job)
 		return nil // Return an error if the job fails
 	}), taskqueue.WithConcurrency(8))
@@ -146,7 +141,6 @@ The library leverages a Lua script to ensure atomic dequeuing and visibility tim
 - Support for additional job store backends. (e.g., Mysql, Postgres).
 - Metrics and monitoring integrations.
 - Enhanced retry policies and dead letter queues.
-- Web dashboard for job management.
 
 ---
 

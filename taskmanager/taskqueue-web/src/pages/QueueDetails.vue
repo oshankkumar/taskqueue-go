@@ -1,6 +1,10 @@
 <template>
   <q-page class="q-pa-md">
-    <JobList :queueName="queueName"/>
+    <div class="row q-col-gutter-sm q-py-sm">
+      <div class="col-lg-9 col-md-9 col-sm-9 col-xs-9">
+        <JobList :queueName="queueName"/>
+      </div>
+    </div>
   </q-page>
 </template>
 
@@ -17,6 +21,7 @@ export default {
       queueName: this.$route.params.queue_name, // Extract queue name from route params
     };
   },
+  methods: {},
 };
 </script>
 
