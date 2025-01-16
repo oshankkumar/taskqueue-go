@@ -259,9 +259,10 @@ func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) erro
 		return err
 	}
 
-	job.FailureReason = h.handler.Handle(ctx, job)
-	if job.FailureReason != nil {
-		w.ErrorHandler(job.FailureReason)
+	jobErr := h.handler.Handle(ctx, job)
+	if jobErr != nil {
+		job.FailureReason = jobErr.Error()
+		w.ErrorHandler(jobErr)
 	}
 
 	job.UpdatedAt = time.Now()
@@ -272,7 +273,7 @@ func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) erro
 	}
 
 	switch {
-	case job.FailureReason == nil:
+	case jobErr == nil:
 		job.Status = JobStatusCompleted
 	case job.Attempts >= h.jobOptions.MaxAttempts:
 		job.Status = JobStatusDead
@@ -284,7 +285,7 @@ func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) erro
 		return err
 	}
 
-	if job.FailureReason == nil {
+	if jobErr == nil {
 		return w.Queue.Ack(ctx, job.ID, &AckOptions{QueueName: h.queueName})
 	}
 

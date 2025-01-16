@@ -52,14 +52,26 @@
             </q-card-section>
 
             <q-card-section>
-              <p class="text-caption">
-                <strong>Started At:</strong>
-                {{ formatDate(worker.startedAt) }}
-              </p>
-              <p class="text-caption">
-                <strong>Last Heartbeat:</strong>
-                {{ formatDate(worker.heartbeatAt) }}
-              </p>
+              <q-item>
+                <q-item-section>
+                  <p class="text-caption">
+                    <strong>Started At:</strong>
+                    {{ formatDate(worker.startedAt) }}
+                  </p>
+                </q-item-section>
+                <q-item-section>
+                  <p class="text-caption">
+                    <strong>Last Heartbeat:</strong>
+                    {{ formatDate(worker.heartbeatAt) }}
+                  </p>
+                </q-item-section>
+                <q-item-section>
+                  <p class="text-caption">
+                    <strong>Process ID:</strong>
+                    {{ worker.pid }}
+                  </p>
+                </q-item-section>
+              </q-item>
             </q-card-section>
 
             <q-card-section>

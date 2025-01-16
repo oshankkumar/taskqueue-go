@@ -10,27 +10,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type JobError struct {
-	Err error
-}
-
-func (j *JobError) ScanRedis(s string) error {
-	if len(s) == 0 {
-		j.Err = nil
-		return nil
-	}
-
-	j.Err = errors.New(s)
-	return nil
-}
-
-func (j JobError) MarshalBinary() (data []byte, err error) {
-	if j.Err != nil {
-		return []byte(j.Err.Error()), nil
-	}
-	return nil, nil
-}
-
 type JobStatus int8
 
 func (j *JobStatus) ScanRedis(s string) error {
@@ -55,7 +34,7 @@ type Job struct {
 	StartedAt     time.Time `redis:"started_at"`
 	UpdatedAt     time.Time `redis:"updated_at"`
 	Attempts      int       `redis:"attempts"`
-	FailureReason JobError  `redis:"failure_reason"`
+	FailureReason string    `redis:"failure_reason"`
 	Status        JobStatus `redis:"status"`
 	ProcessedBy   string    `redis:"processed_by"`
 }
@@ -84,7 +63,7 @@ func (s *Store) CreateOrUpdate(ctx context.Context, job *taskqueue.Job) error {
 		UpdatedAt:     job.UpdatedAt,
 		Attempts:      job.Attempts,
 		Status:        JobStatus(job.Status),
-		FailureReason: JobError{Err: job.FailureReason},
+		FailureReason: job.FailureReason,
 		ProcessedBy:   job.ProcessedBy,
 	}
 
@@ -111,7 +90,7 @@ func (s *Store) GetJob(ctx context.Context, jobID string) (*taskqueue.Job, error
 		StartedAt:     redisJob.StartedAt,
 		UpdatedAt:     redisJob.UpdatedAt,
 		Attempts:      redisJob.Attempts,
-		FailureReason: redisJob.FailureReason.Err,
+		FailureReason: redisJob.FailureReason,
 		Status:        taskqueue.JobStatus(redisJob.Status),
 		ProcessedBy:   redisJob.ProcessedBy,
 	}, nil

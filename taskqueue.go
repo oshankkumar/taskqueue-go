@@ -75,7 +75,7 @@ type Job struct {
 	StartedAt     time.Time
 	UpdatedAt     time.Time
 	Attempts      int
-	FailureReason error
+	FailureReason string
 	Status        JobStatus
 	ProcessedBy   string
 }

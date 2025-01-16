@@ -465,10 +465,6 @@ func (s *Server) listQueueJobs(w http.ResponseWriter, r *http.Request, queueDeta
 		var args interface{}
 		_ = json.Unmarshal(job.Payload, &args)
 
-		var jobErr string
-		if job.FailureReason != nil {
-			jobErr = job.FailureReason.Error()
-		}
 		resp.Jobs = append(resp.Jobs, Job{
 			ID:            job.ID,
 			QueueName:     job.QueueName,
@@ -477,7 +473,7 @@ func (s *Server) listQueueJobs(w http.ResponseWriter, r *http.Request, queueDeta
 			StartedAt:     job.StartedAt,
 			UpdatedAt:     job.UpdatedAt,
 			Attempts:      job.Attempts,
-			FailureReason: jobErr,
+			FailureReason: job.FailureReason,
 			Status:        job.Status.String(),
 			ProcessedBy:   job.ProcessedBy,
 		})

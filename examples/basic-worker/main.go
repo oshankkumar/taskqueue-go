@@ -37,22 +37,22 @@ func main() {
 			return err
 		}
 
-		fmt.Printf("Processing Job %s. Please wait...\n", job.ID)
-		fmt.Printf("Received Message From %s At %s: %s\n", payload.Sender, payload.SendAt, payload.Message)
+		fmt.Printf("processing queue email job %s. Please wait...\n", job.ID)
 
 		if rand.Int31n(100) <= 30 {
 			return errors.New("something went wrong")
 		}
-
-		fmt.Printf("Job %s Processed Successfully!!\n", job.ID)
 
 		return nil
-	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(2))
+	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(1))
 
 	worker.RegisterHandler("payment_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
+		fmt.Printf("processing queue payment job %s. Please wait...\n", job.ID)
+
 		if rand.Int31n(100) <= 30 {
 			return errors.New("something went wrong")
 		}
+
 		return nil
 	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(1))
 

@@ -23,7 +23,7 @@
 
     <div class="row q-col-gutter-sm q-py-sm">
       <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-        <worker-list :workers="activeWorkers" @refresh="refreshWorkers"/>
+        <worker-list :workers="activeWorkers" @refresh="fetchActiveWorkers"/>
       </div>
     </div>
 
@@ -58,9 +58,6 @@ export default {
     this.fetchActiveWorkers();
   },
   methods: {
-    refreshWorkers() {
-      this.fetchActiveWorkers();
-    },
     async fetchActiveWorkers() {
       try {
         const data = await this.$taskManagerClient.listActiveWorkers();

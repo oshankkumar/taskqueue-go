@@ -38,7 +38,7 @@ func TestStoreCreateOrUpdate(t *testing.T) {
 		StartedAt:     now,
 		UpdatedAt:     now,
 		Attempts:      2,
-		FailureReason: taskqueue.ErrJobNotFound,
+		FailureReason: taskqueue.ErrJobNotFound.Error(),
 		Status:        taskqueue.JobStatusActive,
 		ProcessedBy:   "test-worker-1",
 	}
