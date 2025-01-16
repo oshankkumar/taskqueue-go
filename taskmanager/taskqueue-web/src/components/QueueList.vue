@@ -27,7 +27,7 @@
           <q-table
             :rows="queueData"
             :columns="tableColumns"
-            row-key="queueName"
+            row-key="name"
             :rows-per-page-options="[5, 10, 20, 50]"
             class="my-table full-width"
             flat
@@ -38,14 +38,14 @@
               <q-tr
                 :props="props"
                 class="cursor-pointer hover:bg-grey-2"
-                @click="navigateToQueue(props.row.queueName)"
+                @click="navigateToQueue(props.row.name)"
               >
                 <!-- Queue Name -->
-                <q-td key="queueName" :props="props" class="text-left">
+                <q-td key="name" :props="props" class="text-left">
                   <q-item>
                     <q-item-section>
                   <span class="text-primary text-bold">
-                    {{ props.row.queueName }}
+                    {{ props.row.name }}
                   </span>
                     </q-item-section>
                   </q-item>
@@ -90,7 +90,7 @@ export default {
   data() {
     return {
       columns: [
-        {name: 'queueName', label: 'Queue Name', align: 'left', field: 'queueName'},
+        {name: 'name', label: 'Queue Name', align: 'left', field: 'name'},
         {name: 'jobCount', label: 'Job Count', align: 'right', field: 'jobCount'},
       ],
       pagination: {
@@ -101,10 +101,10 @@ export default {
   },
   computed: {
     queueIconColor() {
-      return this.queueType === 'Pending' ? 'secondary' : this.queueType === 'Completed' ? 'positive' : 'negative';
+      return this.queueType === 'Pending' ? 'secondary' : 'negative';
     },
     queueIcon() {
-      return this.queueType === 'Pending' ? 'pending' : this.queueType === 'Completed' ? 'check_circle' : 'cancel'
+      return this.queueType === 'Pending' ? 'pending' : 'cancel'
     },
     tableColumns() {
       if (this.queueType === 'Pending') {
@@ -124,9 +124,7 @@ export default {
     navigateToQueue(queueName) {
       if (this.queueType === 'Pending') {
         this.$router.push(`/pending-queues/${queueName}`);
-      } else if (this.queueType === 'Completed') {
-        this.$router.push(`/completed-queues/${queueName}`);
-      } else {
+      } else if (this.queueType === 'Dead') {
         this.$router.push(`/dead-queues/${queueName}`);
       }
     }

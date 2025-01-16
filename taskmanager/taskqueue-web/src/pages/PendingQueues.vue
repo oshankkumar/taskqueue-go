@@ -1,8 +1,13 @@
 <template>
     <q-page class="q-pa-md">
         <div class="row q-col-gutter-sm q-py-sm">
-            <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                <queue-list :queue-data="pendingQueueData" title="Pending" queue-type="Pending"/>
+            <div v-if="loadingPendingQueues" class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+                <q-card>
+                    <q-skeleton></q-skeleton>
+                </q-card>
+            </div>
+            <div v-else class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+                <queue-list :queue-data="pendingQueues" title="Pending" queue-type="Pending"/>
             </div>
         </div>
     </q-page>
@@ -18,17 +23,32 @@ export default {
     },
     data() {
         return {
-            // Example queue data
-            pendingQueueData: [
-                {queueName: 'process-order-payment', jobCount: 150, status: 'Running'},
-                {queueName: 'process-order-completion', jobCount: 75, status: 'Paused'},
-                {queueName: 'process-new-order', jobCount: 200, status: 'Running'},
-                {queueName: 'process-dispatch-order', jobCount: 150, status: 'Running'},
-                {queueName: 'process-order-cancellation', jobCount: 75, status: 'Paused'},
-                {queueName: 'process-dispatch-order', jobCount: 150, status: 'Running'},
-                {queueName: 'process-order-cancellation', jobCount: 75, status: 'Paused'},
-            ],
+            loadingPendingQueues: false,
+            pendingQueues: [],
         };
+    },
+    mounted() {
+        this.fetchPendingQueues();
+    },
+    methods: {
+        async fetchPendingQueues() {
+            try {
+                this.loadingPendingQueues = true;
+                const data = await this.$taskManagerClient.listPendingQueues();
+                this.pendingQueues = data.queues || [];
+            } catch (error) {
+                this.pendingQueues = [];
+                console.error(error);
+                this.$q.notify({
+                    type: 'negative',
+                    message: 'Failed to fetch pending queues.',
+                    timeout: 3000,
+                    icon: 'warning',
+                });
+            } finally {
+                this.loadingPendingQueues = false;
+            }
+        },
     }
 };
 </script>

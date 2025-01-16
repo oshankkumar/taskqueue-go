@@ -59,7 +59,6 @@
 </template>
 
 <script>
-import axios from "axios";
 
 export default {
   name: "NewJobForm",
@@ -98,14 +97,11 @@ export default {
       this.loading = true;
 
       try {
-        const payload = {
-          queue: this.formData.queue,
-          argument: JSON.parse(this.formData.argument),
-        };
-
-        await axios.post("/api/jobs", payload);
-        this.$q.notify({type: "positive", message: "Job submitted successfully!"});
-        this.resetForm();
+        const args = JSON.parse(this.formData.argument)
+        const data = await this.$taskManagerClient.createJob(this.formData.queue, {
+          args: args,
+        });
+        this.$q.notify({type: "positive", message: `Job ${data.id} submitted successfully.`, icon: "check_circle"});
       } catch (error) {
         console.error("Failed to submit job:", error);
         this.$q.notify({type: "negative", message: "Failed to submit the job."});

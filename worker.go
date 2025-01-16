@@ -3,7 +3,7 @@ package taskqueue
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"math"
 	"os"
 	"sync"
@@ -20,49 +20,34 @@ func (h HandlerFunc) Handle(ctx context.Context, job *Job) error {
 	return h(ctx, job)
 }
 
-type InternalLogger interface {
-	Debugf(format string, args ...interface{})
-	Infof(format string, args ...interface{})
+type Logger interface {
+	Debug(format string, args ...interface{})
+	Info(format string, args ...interface{})
+	Error(format string, args ...interface{})
 }
-
-type printLogger struct {
-	log *log.Logger
-}
-
-func (p printLogger) Debugf(format string, args ...interface{}) {
-	p.log.Printf(format, args...)
-}
-
-func (p printLogger) Infof(format string, args ...interface{}) {
-	p.log.Printf(format, args...)
-}
-
-type NoOpInternalLogger struct{}
-
-func (n NoOpInternalLogger) Debugf(format string, args ...interface{}) {}
-func (n NoOpInternalLogger) Infof(format string, args ...interface{})  {}
 
 type WorkerOptions struct {
-	ID             string
-	Queue          Queue
-	JobStore       JobStore
-	ErrorHandler   func(err error)
-	InternalLogger InternalLogger
+	ID           string
+	Queue        Queue
+	JobStore     JobStore
+	HeartBeater  HeartBeater
+	ErrorHandler func(err error)
+	Logger       Logger
 }
 
 func NewWorker(opts *WorkerOptions) *Worker {
-	if opts.InternalLogger == nil {
-		opts.InternalLogger = printLogger{
-			log: log.New(os.Stderr, "[taskqueue] ", log.LstdFlags),
-		}
+	if opts.ID == "" {
+		opts.ID, _ = os.Hostname()
+	}
+
+	if opts.Logger == nil {
+		opts.Logger = slog.New(slog.NewJSONHandler(os.Stdout, nil).WithAttrs([]slog.Attr{
+			slog.String("worker_id", opts.ID),
+		}))
 	}
 
 	if opts.ErrorHandler == nil {
-		opts.ErrorHandler = func(err error) { opts.InternalLogger.Infof("failed processing job: error:%s", err) }
-	}
-
-	if opts.ID == "" {
-		opts.ID, _ = os.Hostname()
+		opts.ErrorHandler = func(err error) { opts.Logger.Error("failed processing job", "error", err) }
 	}
 
 	return &Worker{
@@ -70,7 +55,8 @@ func NewWorker(opts *WorkerOptions) *Worker {
 		Queue:          opts.Queue,
 		JobStore:       opts.JobStore,
 		ErrorHandler:   opts.ErrorHandler,
-		InternalLogger: opts.InternalLogger,
+		InternalLogger: opts.Logger,
+		heartBeater:    opts.HeartBeater,
 		handlers:       make(map[string]*queueHandler),
 	}
 }
@@ -80,11 +66,13 @@ type Worker struct {
 	Queue          Queue
 	JobStore       JobStore
 	ErrorHandler   func(err error)
-	InternalLogger InternalLogger
+	InternalLogger Logger
 
+	heartBeater    HeartBeater
 	handlers       map[string]*queueHandler
 	cancel         context.CancelFunc
 	queueWaitGroup sync.WaitGroup
+	startedAt      time.Time
 }
 
 type JobOptions struct {
@@ -157,7 +145,24 @@ func (w *Worker) RegisterHandler(queueName string, h Handler, opts ...JobOption)
 }
 
 func (w *Worker) Start(ctx context.Context) {
+	w.startedAt = time.Now()
+
 	ctx, w.cancel = context.WithCancel(ctx)
+
+	w.queueWaitGroup.Add(1)
+	go func() {
+		defer w.queueWaitGroup.Done()
+		w.startHeartBeat(ctx)
+		w.InternalLogger.Info("stopped heartbeater")
+	}()
+
+	w.queueWaitGroup.Add(1)
+	go func() {
+		defer w.queueWaitGroup.Done()
+		w.reapHeartbeats(ctx)
+		w.InternalLogger.Info("stopped heartbeat reaper")
+	}()
+
 	for _, h := range w.handlers {
 		go w.start(ctx, h)
 	}
@@ -167,14 +172,14 @@ func (w *Worker) start(ctx context.Context, h *queueHandler) {
 	jobCh := make(chan *Job, h.jobOptions.Concurrency)
 
 	startWorker := func(id int) {
-		w.InternalLogger.Infof("started worker %d to proceesing queue %s", id, h.queueName)
+		w.InternalLogger.Info("started worker to processing queue", "goroutine", id, "queue_name", h.queueName)
 		defer w.queueWaitGroup.Done()
 		for job := range jobCh {
 			if err := w.processJob(ctx, job, h); err != nil {
 				w.ErrorHandler(err)
 			}
 		}
-		w.InternalLogger.Infof("stopped worker %d to processing queue %s ", id, h.queueName)
+		w.InternalLogger.Info("stopped worker to processing queue", "goroutine", id, "queue_name", h.queueName)
 	}
 
 	go w.dequeueJob(ctx, jobCh, h)
@@ -204,10 +209,10 @@ func (w *Worker) dequeueJob(ctx context.Context, jobCh chan<- *Job, h *queueHand
 
 		select {
 		case <-ctx.Done():
-			w.InternalLogger.Debugf("context cancelled. stopping dequeue: %s", h.queueName)
+			w.InternalLogger.Info("context cancelled. stopping dequeue", "queue_name", h.queueName)
 			return
 		case result := <-dequeueDone:
-			w.InternalLogger.Debugf("dequeue done. result=%#v", result)
+			w.InternalLogger.Debug("dequeue done", "result", result)
 
 			dequeueDone = nil
 			waitTime = 0
@@ -227,7 +232,7 @@ func (w *Worker) dequeueJob(ctx context.Context, jobCh chan<- *Job, h *queueHand
 				}
 			}
 		case <-startDequeue:
-			w.InternalLogger.Debugf("starting dequeue from %s", h.queueName)
+			w.InternalLogger.Debug("starting dequeue", "queue_name", h.queueName)
 
 			dequeueDone = make(chan dequeueResult, 1)
 			go func() {
@@ -293,8 +298,106 @@ func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) erro
 }
 
 func (w *Worker) Stop() {
-	w.InternalLogger.Infof("stopping worker")
+	w.InternalLogger.Info("stopping worker")
 	w.cancel()
 	w.queueWaitGroup.Wait()
-	w.InternalLogger.Infof("stopped worker")
+	w.InternalLogger.Info("worker stopped")
+}
+
+func (w *Worker) startHeartBeat(ctx context.Context) {
+	if w.heartBeater == nil {
+		return
+	}
+
+	pid := os.Getpid()
+
+	var queues []HeartbeatQueueData
+	for _, h := range w.handlers {
+		queues = append(queues, HeartbeatQueueData{
+			Name:        h.queueName,
+			Concurrency: h.jobOptions.Concurrency,
+			MaxAttempts: h.jobOptions.MaxAttempts,
+			Timeout:     h.jobOptions.Timeout,
+		})
+	}
+
+	heartBeatTicker := time.NewTicker(time.Second * 10)
+	defer heartBeatTicker.Stop()
+
+	w.InternalLogger.Info("starting heartbeat loop")
+
+	for {
+		select {
+		case <-ctx.Done():
+			ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second*5)
+			defer cancel()
+			if err := w.heartBeater.RemoveHeartbeat(ctx, w.ID); err != nil {
+				w.ErrorHandler(err)
+			}
+			return
+		case <-heartBeatTicker.C:
+			if err := w.heartBeater.SendHeartbeat(ctx, HeartbeatData{
+				WorkerID:    w.ID,
+				StartedAt:   w.startedAt,
+				HeartbeatAt: time.Now(),
+				Queues:      queues,
+				PID:         pid,
+			}); err != nil {
+				w.ErrorHandler(err)
+			}
+		}
+	}
+}
+
+func (w *Worker) reapHeartbeats(ctx context.Context) {
+	if w.heartBeater == nil {
+		return
+	}
+
+	ticker := time.NewTicker(time.Minute * 1)
+	defer ticker.Stop()
+
+	w.InternalLogger.Info("started reaping heartbeats")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			hbs, err := w.heartBeater.LastHeartbeats(ctx)
+			if err != nil {
+				w.ErrorHandler(err)
+				continue
+			}
+			for _, hb := range hbs {
+				if hb.HeartbeatAt.After(time.Now().Add(-time.Minute * 5)) {
+					continue
+				}
+				if err := w.heartBeater.RemoveHeartbeat(ctx, hb.WorkerID); err != nil {
+					w.ErrorHandler(err)
+				}
+			}
+		}
+	}
+}
+
+type HeartbeatQueueData struct {
+	Name        string
+	Concurrency int
+	MaxAttempts int
+	Timeout     time.Duration
+}
+
+type HeartbeatData struct {
+	WorkerID    string
+	StartedAt   time.Time
+	HeartbeatAt time.Time
+	Queues      []HeartbeatQueueData
+	PID         int
+}
+
+type HeartBeater interface {
+	SendHeartbeat(ctx context.Context, data HeartbeatData) error
+	RemoveHeartbeat(ctx context.Context, workerID string) error
+	LastHeartbeats(ctx context.Context) ([]HeartbeatData, error)
 }

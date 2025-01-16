@@ -1,8 +1,13 @@
 <template>
     <q-page class="q-pa-md">
         <div class="row q-col-gutter-sm q-py-sm">
-            <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
-                <queue-list :queue-data="deadQueueData" title="Dead" queue-type="Dead"/>
+            <div v-if="loadingDeadQueues" class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+                <q-card>
+                    <q-skeleton></q-skeleton>
+                </q-card>
+            </div>
+            <div v-else class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+                <queue-list :queue-data="deadQueues" title="Dead" queue-type="Dead"/>
             </div>
         </div>
     </q-page>
@@ -18,16 +23,32 @@ export default {
     },
     data() {
         return {
-            deadQueueData: [
-                {queueName: 'process-order-payment:dead', jobCount: 150},
-                {queueName: 'process-order-completion:dead', jobCount: 75},
-                {queueName: 'process-new-order:dead', jobCount: 200},
-                {queueName: 'process-dispatch-order:dead', jobCount: 150},
-                {queueName: 'process-order-cancellation:dead', jobCount: 75},
-                {queueName: 'process-dispatch-order:dead', jobCount: 150},
-                {queueName: 'process-order-cancellation:dead', jobCount: 75},
-            ]
+            loadingDeadQueues: false,
+            deadQueues: []
         };
+    },
+    mounted() {
+        this.fetchDeadQueues();
+    },
+    methods: {
+        async fetchDeadQueues() {
+            try {
+                this.loadingDeadQueues = true;
+                const data = await this.$taskManagerClient.listDeadQueues();
+                this.deadQueues = data.queues || [];
+            } catch (error) {
+                this.deadQueues = [];
+                console.error(error)
+                this.$q.notify({
+                    type: 'negative',
+                    message: 'Failed to fetch dead queues.',
+                    timeout: 3000,
+                    icon: 'warning',
+                });
+            } finally {
+                this.loadingDeadQueues = false;
+            }
+        }
     }
 };
 </script>

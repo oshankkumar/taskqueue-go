@@ -84,8 +84,8 @@ export default {
   },
   methods: {
     updateChartOptions(queueDetails) {
-      const queueNames = queueDetails.map((item) => item.queue_name);
-      const jobCounts = queueDetails.map((item) => item.job_count);
+      const queueNames = queueDetails.map((item) => item.name);
+      const jobCounts = queueDetails.map((item) => item.jobCount);
 
       this.chartOptions.xAxis.data = queueNames;
       this.chartOptions.series[0].data = jobCounts;
