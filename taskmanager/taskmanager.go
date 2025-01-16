@@ -161,6 +161,7 @@ func (s *Server) listActiveWorkers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resp ListActiveWorkersResponse
+
 	for _, hb := range hbs {
 		var queues []QueuesConfig
 		for _, q := range hb.Queues {

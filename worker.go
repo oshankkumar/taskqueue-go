@@ -321,10 +321,20 @@ func (w *Worker) startHeartBeat(ctx context.Context) {
 		})
 	}
 
+	w.InternalLogger.Info("starting heartbeat loop")
+
+	if err := w.heartBeater.SendHeartbeat(ctx, HeartbeatData{
+		WorkerID:    w.ID,
+		StartedAt:   w.startedAt,
+		HeartbeatAt: time.Now(),
+		Queues:      queues,
+		PID:         pid,
+	}); err != nil {
+		w.ErrorHandler(err)
+	}
+
 	heartBeatTicker := time.NewTicker(time.Second * 10)
 	defer heartBeatTicker.Stop()
-
-	w.InternalLogger.Info("starting heartbeat loop")
 
 	for {
 		select {

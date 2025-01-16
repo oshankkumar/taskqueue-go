@@ -135,7 +135,8 @@
                   <div class="q-gutter-sm flex justify-center">
                     <!-- Re-enqueue Button -->
                     <q-btn
-                      round
+                      glossy
+                      rounded
                       dense
                       icon="play_arrow"
                       color="primary"
@@ -148,7 +149,8 @@
 
                     <!-- Delete Button with Tooltip -->
                     <q-btn
-                      round
+                      glossy
+                      rounded
                       dense
                       icon="delete"
                       color="negative"

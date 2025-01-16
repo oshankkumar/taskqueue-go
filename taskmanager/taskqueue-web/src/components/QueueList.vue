@@ -8,7 +8,7 @@
         <q-card-section class="text-h6 q-pb-none">
           <q-item>
             <q-item-section avatar class="">
-              <q-icon :color="queueIconColor" :name="queueIcon" size="44px"/>
+              <q-icon :color="queueIconColor" :name="queueIcon" size="44px" />
             </q-item-section>
 
             <q-item-section>

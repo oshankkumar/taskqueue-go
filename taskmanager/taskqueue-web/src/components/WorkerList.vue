@@ -2,6 +2,9 @@
   <q-card class="shadow-2 rounded-xl full-width">
     <q-card-section>
       <q-item>
+        <q-item-section avatar class="">
+          <q-icon color="blue" name="fas fa-cogs" size="44px"/>
+        </q-item-section>
         <q-item-section>
           <q-item-label>
             <div class="text-h6">Active Workers</div>
@@ -36,35 +39,42 @@
       >
         <template v-slot="{ item: worker }">
           <q-card flat bordered class="q-my-sm">
-            <q-card-section>
-              <q-item-label>
-                <div class="text-bold">Worker ID: {{ worker.workerID }}</div>
-              </q-item-label>
-            </q-card-section>
-
-            <q-item-section side class="q-mr-md text-white">
-              <q-badge :color="worker.statusColor" label="Active" class="q-ml-auto"/>
-            </q-item-section>
 
             <q-card-section>
-              <div>Started At: {{ formatDate(worker.startedAt) }}</div>
-              <div>Last Heartbeat: {{ formatDate(worker.heartbeatAt) }}</div>
-              <div>Process ID: {{ worker.pid }}</div>
+              <div class="row items-center">
+                <div class="col">
+                  <div class="text-h6">{{ worker.workerID }}</div>
+                  <q-badge color="green" align="left">
+                    Active
+                  </q-badge>
+                </div>
+              </div>
             </q-card-section>
 
             <q-card-section>
-              <q-list bordered>
-                <q-item v-for="queue in worker.queues" :key="queue.queueName">
-                  <q-item-section>
-                    <q-item-label>
-                      <span class="text-bold">{{ queue.queueName }}</span>
-                    </q-item-label>
-                    <q-item-label caption class="text-grey-dark">
-                      (Concurrency: {{ queue.concurrency }})
-                    </q-item-label>
-                  </q-item-section>
-                </q-item>
-              </q-list>
+              <p class="text-caption">
+                <strong>Started At:</strong>
+                {{ formatDate(worker.startedAt) }}
+              </p>
+              <p class="text-caption">
+                <strong>Last Heartbeat:</strong>
+                {{ formatDate(worker.heartbeatAt) }}
+              </p>
+            </q-card-section>
+
+            <q-card-section>
+              <q-expansion-item icon="queue" label="Queues">
+                <q-list dense>
+                  <q-item v-for="queue in worker.queues" :key="queue.name">
+                    <q-item-section>
+                      <span>{{ queue.queueName }}</span>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-badge color="blue">{{ queue.concurrency }}</q-badge>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-expansion-item>
             </q-card-section>
 
           </q-card>

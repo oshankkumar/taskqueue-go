@@ -48,8 +48,8 @@
 
             <!-- Submit and Reset Buttons -->
             <div class="row justify-end q-gutter-sm">
-              <q-btn label="Reset" color="secondary" type="reset"/>
-              <q-btn label="Submit" color="primary" type="submit" :loading="loading"/>
+              <q-btn label="Reset" color="secondary" type="reset" glossy/>
+              <q-btn label="Submit" color="primary" type="submit" :loading="loading" glossy/>
             </div>
           </q-form>
         </q-card-section>
