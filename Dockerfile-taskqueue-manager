@@ -1,0 +1,54 @@
+# Step 1: Build the frontend (Vue.js + Quasar)
+FROM node:20 AS frontend-builder
+
+# Set the working directory
+WORKDIR /app/frontend
+
+# Copy package files and install dependencies
+# COPY taskmanager/taskqueue-web/package.json taskmanager/taskqueue-web/yarn.lock ./
+RUN yarn install
+
+# Copy the rest of the frontend source code
+COPY taskmanager/taskqueue-web/ .
+
+RUN yarn install
+
+# Build the frontend static files
+RUN yarn build
+
+# Step 2: Build the backend (Go service)
+FROM golang:1.23 AS backend-builder
+
+# Set the working directory
+WORKDIR /app/backend
+
+# Copy the backend source code
+COPY . .
+
+# Build the Go service
+RUN go build -o taskqueue-manager ./cmd/taskqueue-manager
+
+# Step 3: Create the final image to serve the app
+FROM alpine:latest
+
+# Install dependencies for serving (e.g., certificates for HTTPS)
+RUN apk add --no-cache \
+    libc6-compat \
+    ca-certificates
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the Go service binary
+COPY --from=backend-builder /app/backend/taskqueue-manager .
+
+# Copy the frontend static files
+COPY --from=frontend-builder /app/frontend/dist/spa/ ./frontend/
+
+# Expose the service port
+EXPOSE 8080
+
+# Command to run the service
+ENTRYPOINT ["/app/taskqueue-manager"]
+
+CMD ["--static-web-dir", "/app/frontend/"]

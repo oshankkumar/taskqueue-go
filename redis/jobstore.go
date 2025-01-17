@@ -39,16 +39,21 @@ type Job struct {
 	ProcessedBy   string    `redis:"processed_by"`
 }
 
-func NewStore(client redis.UniversalClient, ns string) *Store {
-	if ns == "" {
-		ns = taskqueue.DefaultNameSpace
+func NewStore(client redis.UniversalClient, opts ...OptFunc) *Store {
+	opt := &Options{
+		namespace: taskqueue.DefaultNameSpace,
 	}
-	return &Store{namespace: ns, client: client}
+	for _, o := range opts {
+		o(opt)
+	}
+
+	return &Store{namespace: opt.namespace, client: client, completedJobTTL: opt.completedJobTTL}
 }
 
 type Store struct {
-	namespace string
-	client    redis.UniversalClient
+	namespace       string
+	client          redis.UniversalClient
+	completedJobTTL time.Duration
 }
 
 func (s *Store) CreateOrUpdate(ctx context.Context, job *taskqueue.Job) error {
@@ -109,10 +114,22 @@ func (s *Store) DeleteJob(ctx context.Context, jobID string) error {
 func (s *Store) UpdateJobStatus(ctx context.Context, jobID string, status taskqueue.JobStatus) error {
 	key := redisKeyJob(s.namespace, jobID)
 
-	err := s.client.HSet(ctx, key, "status", status.String()).Err()
-	if errors.Is(err, redis.Nil) {
-		return taskqueue.ErrJobNotFound
-	}
+	_, err := s.client.TxPipelined(ctx, func(p redis.Pipeliner) error {
+		err := p.HSet(ctx, key, "status", status.String()).Err()
+		if errors.Is(err, redis.Nil) {
+			return taskqueue.ErrJobNotFound
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if status == taskqueue.JobStatusCompleted && s.completedJobTTL > 0 {
+			return p.Expire(ctx, key, s.completedJobTTL).Err()
+		}
+		return nil
+	})
+
 	return err
 }
 

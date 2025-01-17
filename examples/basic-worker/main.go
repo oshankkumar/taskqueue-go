@@ -22,9 +22,9 @@ func main() {
 	rc := redis.NewClient(&redis.Options{Addr: ":7379"})
 
 	worker := taskqueue.NewWorker(&taskqueue.WorkerOptions{
-		Queue:       redisq.NewQueue(rc, ns),
-		JobStore:    redisq.NewStore(rc, ns),
-		HeartBeater: redisq.NewHeartBeater(rc, ns),
+		Queue:       redisq.NewQueue(rc, redisq.WithNamespace(ns)),
+		JobStore:    redisq.NewStore(rc, redisq.WithNamespace(ns), redisq.WithCompletedJobTTL(time.Hour)),
+		HeartBeater: redisq.NewHeartBeater(rc, redisq.WithNamespace(ns)),
 	})
 
 	worker.RegisterHandler("email_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
@@ -39,7 +39,7 @@ func main() {
 
 		fmt.Printf("processing queue email job %s. Please wait...\n", job.ID)
 
-		if rand.Int31n(100) <= 30 {
+		if rand.Int31n(100) < 30 {
 			return errors.New("something went wrong")
 		}
 
@@ -49,7 +49,7 @@ func main() {
 	worker.RegisterHandler("payment_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
 		fmt.Printf("processing queue payment job %s. Please wait...\n", job.ID)
 
-		if rand.Int31n(100) <= 30 {
+		if rand.Int31n(100) < 30 {
 			return errors.New("something went wrong")
 		}
 
@@ -62,5 +62,6 @@ func main() {
 	worker.Start(ctx)
 
 	<-ctx.Done()
+
 	worker.Stop()
 }

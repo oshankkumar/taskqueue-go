@@ -19,8 +19,8 @@ func main() {
 	rc := redis.NewClient(&redis.Options{Addr: ":7379"})
 
 	enq := taskqueue.NewEnqueuer(
-		redisq.NewQueue(rc, ns),
-		redisq.NewStore(rc, ns),
+		redisq.NewQueue(rc, redisq.WithNamespace(ns)),
+		redisq.NewStore(rc, redisq.WithNamespace(ns)),
 	)
 
 	n1 := queuePaymentJob(enq)

@@ -208,6 +208,9 @@ func (s *Server) requeueAllDeadJobs(w http.ResponseWriter, r *http.Request) {
 
 		for _, jobID := range queueInfo.JobIDs {
 			job, err := s.jobStore.GetJob(r.Context(), jobID)
+			if errors.Is(err, taskqueue.ErrJobNotFound) {
+				continue
+			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -242,6 +245,10 @@ func (s *Server) requeueJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	job, err := s.jobStore.GetJob(r.Context(), jobID)
+	if errors.Is(err, taskqueue.ErrJobNotFound) {
+		http.Error(w, "Job not found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -458,6 +465,9 @@ func (s *Server) listQueueJobs(w http.ResponseWriter, r *http.Request, queueDeta
 	}
 	for _, jodID := range queueDetails.JobIDs {
 		job, err := s.jobStore.GetJob(r.Context(), jodID)
+		if errors.Is(err, taskqueue.ErrJobNotFound) {
+			continue
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

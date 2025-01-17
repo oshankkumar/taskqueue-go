@@ -18,8 +18,14 @@ type HeartbeatData struct {
 	PID         int       `redis:"pid"`
 }
 
-func NewHeartBeater(rc redis.UniversalClient, ns string) *Heartbeater {
-	return &Heartbeater{namespace: ns, client: rc}
+func NewHeartBeater(rc redis.UniversalClient, opts ...OptFunc) *Heartbeater {
+	opt := &Options{
+		namespace: taskqueue.DefaultNameSpace,
+	}
+	for _, o := range opts {
+		o(opt)
+	}
+	return &Heartbeater{namespace: opt.namespace, client: rc}
 }
 
 type Heartbeater struct {

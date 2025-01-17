@@ -16,12 +16,15 @@ import (
 //go:embed dequeue.lua
 var dequeueLuaScript string
 
-func NewQueue(client redis.UniversalClient, ns string) *Queue {
-	if ns == "" {
-		ns = taskqueue.DefaultNameSpace
+func NewQueue(client redis.UniversalClient, opts ...OptFunc) *Queue {
+	opt := &Options{
+		namespace: taskqueue.DefaultNameSpace,
+	}
+	for _, o := range opts {
+		o(opt)
 	}
 	return &Queue{
-		namespace:     ns,
+		namespace:     opt.namespace,
 		client:        client,
 		dequeueScript: redis.NewScript(dequeueLuaScript),
 	}

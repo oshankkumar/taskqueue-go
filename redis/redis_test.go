@@ -21,7 +21,7 @@ func TestStoreCreateOrUpdate(t *testing.T) {
 	}
 
 	client := redis.NewClient(&redis.Options{Addr: redisAddr})
-	store := NewStore(client, "test")
+	store := NewStore(client, WithNamespace("test"))
 
 	var payload [32]byte
 	if _, err := rand.Read(payload[:]); err != nil {
@@ -62,6 +62,20 @@ func TestStoreCreateOrUpdate(t *testing.T) {
 	if !cmp.Equal(job, got, equateErrorMessage) {
 		t.Errorf("job does not match the expected one. Diff:\n%s", cmp.Diff(job, got))
 	}
+
+	if err := store.UpdateJobStatus(context.Background(), job.ID, taskqueue.JobStatusCompleted); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err = store.GetJob(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got.Status != taskqueue.JobStatusCompleted {
+		t.Errorf("job status does not match the expected one. Diff:\n%s", cmp.Diff(job, got))
+	}
+
 }
 
 func TestStoreLastHeartbeats(t *testing.T) {
@@ -72,7 +86,7 @@ func TestStoreLastHeartbeats(t *testing.T) {
 	}
 
 	client := redis.NewClient(&redis.Options{Addr: redisAddr})
-	store := NewHeartBeater(client, "test")
+	store := NewHeartBeater(client, WithNamespace("test"))
 
 	hb := taskqueue.HeartbeatData{
 		WorkerID:    "12345",
