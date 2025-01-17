@@ -141,9 +141,10 @@ TaskQueue-Go comes with a nice dashboard for managing and monitoring your queues
 - **Worker Status**: Monitor the status of workers.
 - **Metrics**: Visualize key metrics.
 
-![Home](images/home.png) 
-![Pendig Queues](images/pending_queues.png)
-![Pending Jobs](images/pending_jobs.png)
+
+<img src="images/home.png" alt="Dashboard Screenshot" width="600" style="border:1px solid #ccc;" />
+<img src="images/pending_jobs.png" alt="Dashboard Screenshot" width="600" style="border:1px solid #ccc;" />
+<img src="images/pending_queues.png" alt="Dashboard Screenshot" width="600" style="border:1px solid #ccc;" />
 
 ## Advanced Usage
 
