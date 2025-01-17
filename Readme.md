@@ -123,7 +123,15 @@ To run the TaskQueue Manager locally:
 git clone https://github.com/oshankkumar/taskqueue-go.git
 cd taskqueue-go
 ```
-2. **Build and run the manager:**
+
+2. **Build Dashboard:**
+```
+cd taskmanager/taskqueue-web
+yarn install
+yarn build
+```
+
+3. **Build and run the manager:**
 ```
 go build -o taskqueue-manager ./cmd/taskqueue-manager
 ./taskqueue-manager -listen=:8050 -namespace=taskqueue-go -redis-heartbeat-addr=redis:6379 -redis-job-store-addr=redis:6379 -redis-queue-addr=redis:6379 --static-web-dir=./taskmanager/taskqueue-web/dist/spa
