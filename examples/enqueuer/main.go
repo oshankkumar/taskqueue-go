@@ -25,12 +25,41 @@ func main() {
 
 	n1 := queuePaymentJob(enq)
 	n2 := queueEmailJob(enq)
+	n3 := queueNotificationJob(enq)
 
-	fmt.Println("Jobs Enqueued", "payment", n1, "email", n2)
+	fmt.Println("Jobs Enqueued", "payment", n1, "email", n2, "notification", n3)
+}
+
+func queueNotificationJob(enq *taskqueue.TaskEnqueuer) int {
+	count := rand.Intn(100) + 100
+
+	for range count {
+		notifyJob := taskqueue.NewJob()
+		_ = notifyJob.JSONMarshalPayload(map[string]interface{}{
+			"to": "YOUR_DEVICE_TOKEN",
+			"notification": map[string]string{
+				"title": "New Message!",
+				"body":  "You have a new message from John Doe.",
+				"sound": "default",
+			},
+			"data": map[string]string{
+				"message_id": "12345",
+				"user_id":    "67890",
+				"type":       "chat",
+			},
+		})
+		if err := enq.Enqueue(context.Background(), notifyJob, &taskqueue.EnqueueOptions{
+			QueueName: "push_notification_queue",
+		}); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	return count
 }
 
 func queuePaymentJob(enq *taskqueue.TaskEnqueuer) int {
-	count := rand.Intn(100)
+	count := rand.Intn(100) + 100
 
 	for i := range count {
 		paymentJob := taskqueue.NewJob()
@@ -50,7 +79,7 @@ func queuePaymentJob(enq *taskqueue.TaskEnqueuer) int {
 }
 
 func queueEmailJob(enq *taskqueue.TaskEnqueuer) int {
-	count := rand.Intn(100)
+	count := rand.Intn(100) + 100
 
 	for range count {
 		job := taskqueue.NewJob()

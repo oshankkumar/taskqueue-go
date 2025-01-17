@@ -27,3 +27,4 @@ go.work.sum
 .idea
 examples/enqueuer/enqueuer
 examples/basic-worker/basic-worker
+taskqueue-manager

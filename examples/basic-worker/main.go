@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -27,6 +28,12 @@ func main() {
 		HeartBeater: redisq.NewHeartBeater(rc, redisq.WithNamespace(ns)),
 	})
 
+	var (
+		emailProcessed   atomic.Int32
+		paymentProcessed atomic.Int32
+		notifyProcessed  atomic.Int32
+	)
+
 	worker.RegisterHandler("email_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
 		var payload struct {
 			Sender  string    `json:"sender"`
@@ -37,22 +44,39 @@ func main() {
 			return err
 		}
 
-		fmt.Printf("processing queue email job %s. Please wait...\n", job.ID)
+		time.Sleep(time.Duration(rand.Intn(2000)) * time.Millisecond)
 
-		if rand.Int31n(100) < 30 {
-			return errors.New("something went wrong")
+		if rand.Intn(100) < 30 {
+			return errors.New("something bad happened")
 		}
 
+		emailProcessed.Add(1)
+
+		fmt.Printf("job processed queue_name=email_queue job_id=%s\n", job.ID)
 		return nil
 	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(1))
 
 	worker.RegisterHandler("payment_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
-		fmt.Printf("processing queue payment job %s. Please wait...\n", job.ID)
+		time.Sleep(time.Duration(rand.Intn(2000)) * time.Millisecond)
 
-		if rand.Int31n(100) < 30 {
-			return errors.New("something went wrong")
+		if rand.Intn(100) < 30 {
+			return errors.New("something bad happened")
 		}
 
+		paymentProcessed.Add(1)
+		fmt.Printf("job processed queue_name=payment_queue job_id=%s\n", job.ID)
+		return nil
+	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(1))
+
+	worker.RegisterHandler("push_notification_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
+		time.Sleep(time.Duration(rand.Intn(2000)) * time.Millisecond)
+
+		if rand.Intn(100) < 30 {
+			return errors.New("something bad happened")
+		}
+
+		notifyProcessed.Add(1)
+		fmt.Printf("job processed queue_name=push_notification_queue job_id=%s\n", job.ID)
 		return nil
 	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(1))
 
@@ -64,4 +88,8 @@ func main() {
 	<-ctx.Done()
 
 	worker.Stop()
+
+	fmt.Printf("taskqueue: shutting down. job processed email = %d payment = %d notification = %d\n",
+		emailProcessed.Load(), paymentProcessed.Load(), notifyProcessed.Load(),
+	)
 }

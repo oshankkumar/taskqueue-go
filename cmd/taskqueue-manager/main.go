@@ -39,7 +39,7 @@ func main() {
 	}
 
 	hbClient := redis.NewClient(&redis.Options{Addr: *redisHeartbeaterAddr})
-	if err := jobClient.Ping(ctx).Err(); err != nil {
+	if err := hbClient.Ping(ctx).Err(); err != nil {
 		log.Fatalf("failed to connect to redis job store: %v", err)
 	}
 

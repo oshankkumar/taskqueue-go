@@ -12,7 +12,7 @@
 - **Job Storage**: Separate and extensible storage for job metadata, with Redis and other database integrations.
 - **Atomic Dequeueing**: Ensures tasks are processed reliably using Redis Lua scripts.
 - **Pluggable Architecture**: Easily extend with custom implementations for enqueuing and job storage. This decoupled architecture allows you to independently scale and optimize the queuing system and job storage based on your needs.
-
+- **Dashboard**: TaskQueue-Go includes a feature-rich dashboard for monitoring queues and managing jobs.
 ---
 
 ## Installation
@@ -41,7 +41,7 @@ import (
 const ns = "taskqueue"
 
 func main() {
-	rc := redis.NewClient(&redis.Options{Addr: ":7379"})
+	rc := redis.NewClient(&redis.Options{Addr: ":6379"})
 	
 	// Initialize Redis-backed enqueuer
 	enq := taskqueue.NewEnqueuer(
@@ -88,7 +88,7 @@ import (
 const ns = "taskqueue"
 
 func main() {
-	rc := redis.NewClient(&redis.Options{Addr: ":7379"})
+	rc := redis.NewClient(&redis.Options{Addr: ":6379"})
 	
 	worker := taskqueue.NewWorker(&taskqueue.WorkerOptions{
 		Queue:       redisq.NewQueue(rc, ns),
@@ -113,6 +113,37 @@ func main() {
 ```
 
 ---
+
+## Running TaskQueue Manager
+### Running Locally
+To run the TaskQueue Manager locally:
+
+1. **Clone the repository:**
+```
+git clone https://github.com/oshankkumar/taskqueue-go.git
+cd taskqueue-go
+```
+2. **Build and run the manager:**
+```
+go build -o taskqueue-manager ./cmd/taskqueue-manager
+./taskqueue-manager -listen=:8050 -namespace=taskqueue-go -redis-heartbeat-addr=redis:6379 -redis-job-store-addr=redis:6379 -redis-queue-addr=redis:6379 --static-web-dir=./taskmanager/taskqueue-web/dist/spa
+```
+
+You can access the dashboard at http://localhost:8050 when running the TaskQueue Manager.
+
+## Dashboard
+
+TaskQueue-Go comes with a nice dashboard for managing and monitoring your queues and jobs. The dashboard provides:
+
+- **Queue Monitoring**: View real-time statistics for each queue, including the number of pending, dead jobs.
+- **Job Management**: retry/delete dead jobs, enqueue/submit new jobs directly from the dashboard.
+- **Queue Management**: Pause or Start a queue directly from dashboard.
+- **Worker Status**: Monitor the status of workers.
+- **Metrics**: Visualize key metrics.
+
+![Home](images/home.png) 
+![Pendig Queues](images/pending_queues.png)
+![Pending Jobs](images/pending_jobs.png)
 
 ## Advanced Usage
 
@@ -141,8 +172,6 @@ The library leverages a Lua script to ensure atomic dequeuing and visibility tim
 - Support for additional job store backends. (e.g., Mysql, Postgres).
 - Metrics and monitoring integrations.
 - Enhanced retry policies and dead letter queues.
-
----
 
 ---
 
