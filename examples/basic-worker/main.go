@@ -20,7 +20,7 @@ import (
 const ns = "taskqueue"
 
 func main() {
-	rc := redis.NewClient(&redis.Options{Addr: ":7379"})
+	rc := redis.NewClient(&redis.Options{Addr: ":6379"})
 
 	worker := taskqueue.NewWorker(&taskqueue.WorkerOptions{
 		Queue:       redisq.NewQueue(rc, redisq.WithNamespace(ns)),

@@ -143,7 +143,7 @@ You can access the dashboard at http://localhost:8050 when running the TaskQueue
 To run the TaskQueue Manager using Docker:
 
 ```
-docker run -p 8050:8050  oshank/taskqueue-manager:v1 -listen=:8050 -namespace=taskqueue-go -redis-heartbeat-addr=redis:6379 -redis-job-store-addr=redis:6379 -redis-queue-addr=redis:6379
+docker run -p 8050:8050  oshank/taskqueue-manager:latest -listen=:8050 -namespace=taskqueue -redis-heartbeat-addr=redis:6379 -redis-job-store-addr=redis:6379 -redis-queue-addr=redis:6379
 ```
 
 You can access the dashboard at http://localhost:8050

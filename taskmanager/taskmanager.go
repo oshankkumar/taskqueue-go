@@ -58,13 +58,15 @@ type Server struct {
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	mux := s.initHandler()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
+	mux := s.initHandler()
 	server := &http.Server{Addr: s.addr, Handler: mux}
 
-	var eg errgroup.Group
-
 	s.logger.Info("starting task manager server", "addr", s.addr)
+
+	var eg errgroup.Group
 
 	eg.Go(func() error {
 		<-ctx.Done()
@@ -73,6 +75,7 @@ func (s *Server) Start(ctx context.Context) error {
 	})
 
 	eg.Go(func() error {
+		defer cancel()
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}

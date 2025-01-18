@@ -1,0 +1,16 @@
+services:
+  redis:
+    image: 'redis:latest'
+    ports:
+      - "6379:6379"
+
+  taskqueue-manager:
+    image: 'oshank/taskqueue-manager:latest'
+    ports:
+      - '8050:8050'
+    environment:
+      REDIS_JOB_STORE_ADDR: 'redis:6379'
+      REDIS_QUEUE_ADDR: 'redis:6379'
+      REDIS_HEARTBEAT_ADDR: 'redis:6379'
+    depends_on:
+      - redis
