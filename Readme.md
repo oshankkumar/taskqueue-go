@@ -139,6 +139,15 @@ go build -o taskqueue-manager ./cmd/taskqueue-manager
 
 You can access the dashboard at http://localhost:8050 when running the TaskQueue Manager.
 
+### Running with Docker
+To run the TaskQueue Manager using Docker:
+
+```
+docker run -p 8050:8050  oshank/taskqueue-manager:v1 -listen=:8050 -namespace=taskqueue-go -redis-heartbeat-addr=redis:6379 -redis-job-store-addr=redis:6379 -redis-queue-addr=redis:6379
+```
+
+You can access the dashboard at http://localhost:8050
+
 ## Dashboard
 
 TaskQueue-Go comes with a nice dashboard for managing and monitoring your queues and jobs. The dashboard provides:
