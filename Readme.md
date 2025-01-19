@@ -8,6 +8,8 @@
 
 - **Distributed Task Queues**: Seamlessly enqueue and process tasks across distributed systems.
 - **Customizable Queues**: Configure worker concurrency, job timeouts, and task handlers for each queue.
+- **Retries of Failed Jobs**: Automatically retries failed jobs based on configurable retry policies.
+- **Scheduled Jobs**: Allows scheduling of jobs to be executed after a delay.
 - **Backend Flexibility**: Initial support for Redis as a queue backend, with room for additional implementations.
 - **Job Storage**: Separate and extensible storage for job metadata, with Redis and other database integrations.
 - **Atomic Dequeueing**: Ensures tasks are processed reliably using Redis Lua scripts.
@@ -189,7 +191,6 @@ The library leverages a Lua script to ensure atomic dequeuing and visibility tim
 - Support for additional queueing backends. (e.g., RabbitMQ, Kafka).
 - Support for additional job store backends. (e.g., Mysql, Postgres).
 - Metrics and monitoring integrations.
-- Enhanced retry policies and dead letter queues.
 
 ---
 
