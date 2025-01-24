@@ -127,3 +127,55 @@ func TestStoreLastHeartbeats(t *testing.T) {
 		t.Fatal(cmp.Diff(hbs[0], hb))
 	}
 }
+
+func TestMetricsBackend(t *testing.T) {
+	t.Setenv("REDIS_ADDR", "localhost:6379")
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		t.Skip("skipping test since REDIS_ADDR is not set")
+	}
+
+	client := redis.NewClient(&redis.Options{Addr: redisAddr})
+
+	mb := NewMetricsBackend(client, WithNamespace("test"))
+	now := time.Now()
+
+	if err := mb.RecordGauge(context.Background(), taskqueue.MetricPendingQueueSize, 60, map[string]string{
+		"name": "email_queue",
+	}, now.Add(-time.Minute*60)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := mb.RecordGauge(context.Background(), taskqueue.MetricPendingQueueSize, 80, map[string]string{
+		"name": "email_queue",
+	}, now.Add(-time.Minute*45)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := mb.RecordGauge(context.Background(), taskqueue.MetricPendingQueueSize, 45, map[string]string{
+		"name": "email_queue",
+	}, now.Add(-time.Minute*30)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := mb.RecordGauge(context.Background(), taskqueue.MetricPendingQueueSize, 0, map[string]string{
+		"name": "email_queue",
+	}, now.Add(-time.Minute*15)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := mb.RecordGauge(context.Background(), taskqueue.MetricPendingQueueSize, 10, map[string]string{
+		"name": "email_queue",
+	}, now); err != nil {
+		t.Fatal(err)
+	}
+
+	gv, err := mb.QueryRangeGaugeValues(context.Background(), taskqueue.MetricPendingQueueSize, map[string]string{
+		"name": "email_queue",
+	}, now.Add(-time.Minute*60), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("%#v", gv)
+}

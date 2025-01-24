@@ -6,7 +6,7 @@ WORKDIR /app/frontend
 
 # Copy package files and install dependencies
 # COPY taskmanager/taskqueue-web/package.json taskmanager/taskqueue-web/yarn.lock ./
-RUN yarn install
+# RUN yarn install
 
 # Copy the rest of the frontend source code
 COPY taskmanager/taskqueue-web/ .
