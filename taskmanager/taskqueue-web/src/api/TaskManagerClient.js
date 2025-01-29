@@ -27,6 +27,21 @@ class TaskManagerClient {
     }
   }
 
+  async fetchJobProcessedMetrics(start, end, step) {
+    try {
+      const response = await this.api.get('/metrics/jobs/processed', {
+        params: {
+          start: start,
+          end: end,
+          step: step,
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching dead queues:', error);
+      throw error;
+    }
+  }
 
   // Method to list all dead queues
   async listActiveWorkers() {
@@ -119,10 +134,10 @@ class TaskManagerClient {
 
 
   // Requeue a job from a specific queue
-  async requeueJob(queueName, jobId) {
-    const url = `/dead-queues/${queueName}/jobs/${jobId}/requeue`;
+  async requeueJob(queueName, job) {
+    const url = `/dead-queues/${queueName}/jobs/${job.id}/requeue`;
     try {
-      const response = await this.api.post(url);
+      const response = await this.api.post(url, job);
       return response.data;
     } catch (error) {
       console.error(`Failed to requeue job: ${error.message}`);

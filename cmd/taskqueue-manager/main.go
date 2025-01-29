@@ -14,19 +14,19 @@ import (
 )
 
 var (
-	namespace            = flag.String("namespace", "", "namespace to use. [env: NAMESPACE, default: taskqueue]")
-	redisJobStoreAddr    = flag.String("redis-job-store-addr", "", "address of redis job store. [env: REDIS_JOB_STORE_ADDR, default: 127.0.0.1:6379]")
-	redisQueueAddr       = flag.String("redis-queue-addr", "", "address of redis queue. [env: REDIS_QUEUE_ADDR, default: 127.0.0.1:6379]")
-	redisHeartbeaterAddr = flag.String("redis-heartbeat-addr", "", "address of redis heartbeat store. [env: REDIS_HEARTBEAT_ADDR, default: 127.0.0.1:6379]")
-	listenAddr           = flag.String("listen", "", "address to listen. [env: LISTEN_ADDR, default: :8050]")
-	webStaticDir         = flag.String("web-static-dir", "", "directory to serve static files. [env: WEB_STATIC_DIR, default: ./taskmanager/taskqueue-web/dist/spa]")
+	namespace               = flag.String("namespace", "", "namespace to use. [env: NAMESPACE, default: taskqueue]")
+	redisQueueAddr          = flag.String("redis-queue-addr", "", "address of redis queue. [env: REDIS_QUEUE_ADDR, default: 127.0.0.1:6379]")
+	redisHeartbeaterAddr    = flag.String("redis-heartbeat-addr", "", "address of redis heartbeat store. [env: REDIS_HEARTBEAT_ADDR, default: 127.0.0.1:6379]")
+	redisMetricsBackendAddr = flag.String("redis-metrics-backend-addr", "", "address of redis metrics backend. [env: REDIS_METRICS_BACKEND_ADDR, default: 127.0.0.1:6379]")
+	listenAddr              = flag.String("listen", "", "address to listen. [env: LISTEN_ADDR, default: :8050]")
+	webStaticDir            = flag.String("web-static-dir", "", "directory to serve static files. [env: WEB_STATIC_DIR, default: ./taskmanager/taskqueue-web/dist/spa]")
 )
 
 type config struct {
 	Namespace            string `env:"NAMESPACE" envDefault:"taskqueue"`
-	RedisJobStoreAddr    string `env:"REDIS_JOB_STORE_ADDR" envDefault:"127.0.0.1:6379"`
 	RedisQueueAddr       string `env:"REDIS_QUEUE_ADDR" envDefault:"127.0.0.1:6379"`
 	RedisHeartbeaterAddr string `env:"REDIS_HEARTBEAT_ADDR" envDefault:"127.0.0.1:6379"`
+	RedisMetricsBackend  string `env:"REDIS_METRICS_BACKEND_ADDR" envDefault:"127.0.0.1:6379"`
 	ListenAddr           string `env:"LISTEN_ADDR" envDefault:":8050"`
 	WebStaticDir         string `env:"WEB_STATIC_DIR" envDefault:"./taskmanager/taskqueue-web/dist/spa"`
 }
@@ -41,10 +41,6 @@ func appConfig() config {
 
 	if *namespace != "" {
 		cfg.Namespace = *namespace
-	}
-
-	if *redisJobStoreAddr != "" {
-		cfg.RedisJobStoreAddr = *redisJobStoreAddr
 	}
 
 	if *redisQueueAddr != "" {
@@ -63,6 +59,10 @@ func appConfig() config {
 		cfg.WebStaticDir = *webStaticDir
 	}
 
+	if *redisMetricsBackendAddr != "" {
+		cfg.RedisMetricsBackend = *redisMetricsBackendAddr
+	}
+
 	return cfg
 }
 
@@ -77,22 +77,22 @@ func main() {
 		log.Fatalf("failed to connect to redis queue: %v", err)
 	}
 
-	jobClient := redis.NewClient(&redis.Options{Addr: cfg.RedisJobStoreAddr})
-	if err := jobClient.Ping(ctx).Err(); err != nil {
-		log.Fatalf("failed to connect to redis job store: %v", err)
-	}
-
 	hbClient := redis.NewClient(&redis.Options{Addr: cfg.RedisHeartbeaterAddr})
 	if err := hbClient.Ping(ctx).Err(); err != nil {
 		log.Fatalf("failed to connect to redis job store: %v", err)
 	}
 
+	mtClient := redis.NewClient(&redis.Options{Addr: cfg.RedisMetricsBackend})
+	if err := mtClient.Ping(ctx).Err(); err != nil {
+		log.Fatalf("failed to connect to redis job store: %v", err)
+	}
+
 	server := taskmanager.NewServer(&taskmanager.ServerOptions{
-		TaskQueue:    redisq.NewQueue(queueClient, redisq.WithNamespace(cfg.Namespace)),
-		JobStore:     redisq.NewStore(jobClient, redisq.WithNamespace(cfg.Namespace)),
-		HeartBeater:  redisq.NewHeartBeater(hbClient, redisq.WithNamespace(cfg.Namespace)),
-		Addr:         cfg.ListenAddr,
-		WebStaticDir: cfg.WebStaticDir,
+		TaskQueue:      redisq.NewQueue(queueClient, redisq.WithNamespace(cfg.Namespace)),
+		HeartBeater:    redisq.NewHeartBeater(hbClient, redisq.WithNamespace(cfg.Namespace)),
+		MetricsBackend: redisq.NewMetricsBackend(mtClient, redisq.WithNamespace(cfg.Namespace)),
+		Addr:           cfg.ListenAddr,
+		WebStaticDir:   cfg.WebStaticDir,
 	})
 
 	if err := server.Start(ctx); err != nil {

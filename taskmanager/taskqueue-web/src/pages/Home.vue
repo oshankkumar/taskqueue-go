@@ -7,6 +7,12 @@
                    :active-workers-count="activeWorkers.length"/>
 
     <div class="row q-col-gutter-sm q-py-sm">
+      <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+        <JobProcessingGraph/>
+      </div>
+    </div>
+
+    <div class="row q-col-gutter-sm q-py-sm">
       <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
         <q-card v-if="loadingPendingQueues">
           <q-skeleton></q-skeleton>
@@ -35,6 +41,7 @@
 import QueueSummary from "components/QueueSummary.vue";
 import QueueStatistics from "components/QueueStatistics.vue";
 import WorkerList from "components/WorkerList.vue";
+import JobProcessingGraph from 'components/JobProcessingGraph.vue';
 
 export default {
   name: 'IndexPage',
@@ -42,6 +49,7 @@ export default {
     QueueSummary,
     QueueStatistics,
     WorkerList,
+    JobProcessingGraph,
   },
   data() {
     return {
