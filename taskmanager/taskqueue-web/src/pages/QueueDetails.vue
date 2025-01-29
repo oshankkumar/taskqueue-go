@@ -1,10 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row q-col-gutter-sm q-py-sm">
-      <div class="col-lg-9 col-md-9 col-sm-9 col-xs-9">
-        <JobList :queueName="queueName"/>
-      </div>
-    </div>
+    <JobList :queueName="queueName"/>
   </q-page>
 </template>
 

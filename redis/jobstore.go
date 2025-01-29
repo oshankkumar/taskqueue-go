@@ -124,6 +124,10 @@ func (s *Store) UpdateJobStatus(ctx context.Context, jobID string, status taskqu
 			return err
 		}
 
+		if err := p.HSet(ctx, key, "updated_at", time.Now()).Err(); err != nil {
+			return err
+		}
+
 		if status == taskqueue.JobStatusCompleted && s.completedJobTTL > 0 {
 			return p.Expire(ctx, key, s.completedJobTTL).Err()
 		}

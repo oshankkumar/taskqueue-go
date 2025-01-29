@@ -18,10 +18,7 @@ const ns = "taskqueue"
 func main() {
 	rc := redis.NewClient(&redis.Options{Addr: ":6379"})
 
-	enq := taskqueue.NewEnqueuer(
-		redisq.NewQueue(rc, redisq.WithNamespace(ns)),
-		redisq.NewStore(rc, redisq.WithNamespace(ns)),
-	)
+	enq := redisq.NewQueue(rc, redisq.WithNamespace(ns))
 
 	n1 := queuePaymentJob(enq)
 	n2 := queueEmailJob(enq)
@@ -30,7 +27,7 @@ func main() {
 	fmt.Println("Jobs Enqueued", "payment", n1, "email", n2, "notification", n3)
 }
 
-func queueNotificationJob(enq *taskqueue.TaskEnqueuer) int {
+func queueNotificationJob(enq taskqueue.Enqueuer) int {
 	count := rand.Intn(100) + 100
 
 	for range count {
@@ -58,7 +55,7 @@ func queueNotificationJob(enq *taskqueue.TaskEnqueuer) int {
 	return count
 }
 
-func queuePaymentJob(enq *taskqueue.TaskEnqueuer) int {
+func queuePaymentJob(enq taskqueue.Enqueuer) int {
 	count := rand.Intn(100) + 100
 
 	for i := range count {
@@ -78,7 +75,7 @@ func queuePaymentJob(enq *taskqueue.TaskEnqueuer) int {
 	return count
 }
 
-func queueEmailJob(enq *taskqueue.TaskEnqueuer) int {
+func queueEmailJob(enq taskqueue.Enqueuer) int {
 	count := rand.Intn(100) + 100
 
 	for range count {

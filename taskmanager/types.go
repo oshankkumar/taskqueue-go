@@ -66,3 +66,22 @@ type TogglePendingQueueStatusResponse struct {
 	NewStatus string `json:"newStatus"`
 	OldStatus string `json:"oldStatus"`
 }
+
+type MetricsRange struct {
+	Metric struct {
+		Name   string            `json:"name"`
+		Labels map[string]string `json:"labels"`
+	} `json:"metric"`
+	Values []MetricValue `json:"values"`
+}
+
+type MetricValue struct {
+	TimeStamp int64   `json:"timestamp"`
+	Value     float64 `json:"value"`
+}
+
+type MetricsQueryParam struct {
+	Start time.Time
+	End   time.Time
+	Step  time.Duration
+}

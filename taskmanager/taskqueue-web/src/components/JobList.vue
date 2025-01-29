@@ -306,7 +306,7 @@ export default {
 
     async reEnqueueJob(job) {
       try {
-        await this.$taskManagerClient.requeueJob(this.queueName, job.id);
+        await this.$taskManagerClient.requeueJob(this.queueName, job);
         await this.fetchJobs(this.pagination.page, this.pagination.rowsPerPage);
         this.$q.notify({type: "positive", message: "Job enqueued.", icon: "check_circle"});
       } catch (error) {

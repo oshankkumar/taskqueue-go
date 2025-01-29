@@ -9,7 +9,6 @@ services:
     ports:
       - '8050:8050'
     environment:
-      REDIS_JOB_STORE_ADDR: 'redis:6379'
       REDIS_QUEUE_ADDR: 'redis:6379'
       REDIS_HEARTBEAT_ADDR: 'redis:6379'
     depends_on:

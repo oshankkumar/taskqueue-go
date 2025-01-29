@@ -23,9 +23,9 @@ func main() {
 	rc := redis.NewClient(&redis.Options{Addr: ":6379"})
 
 	worker := taskqueue.NewWorker(&taskqueue.WorkerOptions{
-		Queue:       redisq.NewQueue(rc, redisq.WithNamespace(ns)),
-		JobStore:    redisq.NewStore(rc, redisq.WithNamespace(ns), redisq.WithCompletedJobTTL(time.Hour)),
-		HeartBeater: redisq.NewHeartBeater(rc, redisq.WithNamespace(ns)),
+		Queue:          redisq.NewQueue(rc, redisq.WithNamespace(ns), redisq.WithCompletedJobTTL(time.Hour)),
+		HeartBeater:    redisq.NewHeartBeater(rc, redisq.WithNamespace(ns)),
+		MetricsBackend: redisq.NewMetricsBackend(rc, redisq.WithNamespace(ns)),
 	})
 
 	var (

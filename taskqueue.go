@@ -108,16 +108,16 @@ type DequeueOptions struct {
 }
 
 type Enqueuer interface {
-	Enqueue(ctx context.Context, jobID string, opts *EnqueueOptions) error
+	Enqueue(ctx context.Context, job *Job, opts *EnqueueOptions) error
 }
 
 type Dequeuer interface {
-	Dequeue(ctx context.Context, opts *DequeueOptions, count int) ([]string, error)
+	Dequeue(ctx context.Context, opts *DequeueOptions, count int) ([]*Job, error)
 }
 
-type DequeueFunc func(ctx context.Context, opts *DequeueOptions, count int) ([]string, error)
+type DequeueFunc func(ctx context.Context, opts *DequeueOptions, count int) ([]*Job, error)
 
-func (f DequeueFunc) Dequeue(ctx context.Context, opts *DequeueOptions, count int) ([]string, error) {
+func (f DequeueFunc) Dequeue(ctx context.Context, opts *DequeueOptions, count int) ([]*Job, error) {
 	return f(ctx, opts, count)
 }
 
@@ -132,8 +132,8 @@ type NackOptions struct {
 }
 
 type Acker interface {
-	Ack(ctx context.Context, jobID string, opts *AckOptions) error
-	Nack(ctx context.Context, jobID string, opts *NackOptions) error
+	Ack(ctx context.Context, job *Job, opts *AckOptions) error
+	Nack(ctx context.Context, job *Job, opts *NackOptions) error
 }
 
 type QueueStatus int
@@ -158,7 +158,7 @@ type QueueDetails struct {
 	JobCount   int
 	Status     QueueStatus
 	Pagination Pagination
-	JobIDs     []string
+	Jobs       []*Job
 }
 
 type Pagination struct {
@@ -191,29 +191,3 @@ type Queue interface {
 }
 
 var ErrJobNotFound = errors.New("job not found")
-
-type JobStore interface {
-	CreateOrUpdate(ctx context.Context, job *Job) error
-	GetJob(ctx context.Context, jobID string) (*Job, error)
-	DeleteJob(ctx context.Context, jobID string) error
-	UpdateJobStatus(ctx context.Context, jobID string, status JobStatus) error
-}
-
-func NewEnqueuer(enq Enqueuer, store JobStore) *TaskEnqueuer {
-	return &TaskEnqueuer{enqueuer: enq, jobStore: store}
-}
-
-type TaskEnqueuer struct {
-	enqueuer Enqueuer
-	jobStore JobStore
-}
-
-func (t *TaskEnqueuer) Enqueue(ctx context.Context, job *Job, opts *EnqueueOptions) error {
-	job.QueueName = opts.QueueName
-
-	if err := t.jobStore.CreateOrUpdate(ctx, job); err != nil {
-		return err
-	}
-
-	return t.enqueuer.Enqueue(ctx, job.ID, opts)
-}
