@@ -1,25 +1,28 @@
 <template>
-  <q-page class="q-pa-md">
-    <q-card v-if="loadingPendingQueues || loadingDeadQueues">
-      <q-skeleton></q-skeleton>
-    </q-card>
-    <queue-summary v-else :dead-queues="deadQueues" :pending-queues="pendingQueues"
-                   :active-workers-count="activeWorkers.length"/>
-
-    <div class="row q-col-gutter-sm q-py-sm">
-      <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-        <JobProcessingGraph/>
+  <q-page class="q-pa-sm">
+    <div class="row q-col-gutter-sm q-pa-sm">
+      <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 q-pa-sm">
+        <queue-stats-cards :dead-queues="deadQueues" :pending-queues="pendingQueues"
+                           :active-workers-count="activeWorkers.length"/>
       </div>
     </div>
 
-    <div class="row q-col-gutter-sm q-py-sm">
-      <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+    <div class="row q-col-gutter-sm q-pa-sm">
+      <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 q-pa-sm">
+        <job-processing-graph/>
+      </div>
+    </div>
+
+
+    <div class="row q-col-gutter-sm q-pa-sm">
+      <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 q-pa-sm">
         <q-card v-if="loadingPendingQueues">
           <q-skeleton></q-skeleton>
         </q-card>
         <queue-statistics v-else title="Pending Queue Stats" :queue-details="pendingQueues"/>
       </div>
-      <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+
+      <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 q-pa-sm">
         <q-card v-if="loadingDeadQueues">
           <q-skeleton></q-skeleton>
         </q-card>
@@ -27,18 +30,17 @@
       </div>
     </div>
 
-    <div class="row q-col-gutter-sm q-py-sm">
-      <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+    <div class="row q-col-gutter-sm q-pa-sm">
+      <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 q-pa-sm">
         <worker-list :workers="activeWorkers" @refresh="fetchActiveWorkers"/>
       </div>
     </div>
-
 
   </q-page>
 </template>
 
 <script>
-import QueueSummary from "components/QueueSummary.vue";
+import QueueStatsCards from "components/QueueStatsCards.vue";
 import QueueStatistics from "components/QueueStatistics.vue";
 import WorkerList from "components/WorkerList.vue";
 import JobProcessingGraph from 'components/JobProcessingGraph.vue';
@@ -46,10 +48,10 @@ import JobProcessingGraph from 'components/JobProcessingGraph.vue';
 export default {
   name: 'IndexPage',
   components: {
-    QueueSummary,
     QueueStatistics,
     WorkerList,
     JobProcessingGraph,
+    QueueStatsCards,
   },
   data() {
     return {

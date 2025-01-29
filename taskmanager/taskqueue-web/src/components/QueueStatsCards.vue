@@ -1,9 +1,9 @@
 <template>
-  <q-card class="bg-transparent no-shadow no-border" bordered>
-    <q-card-section class="q-pa-none">
-      <div class="row q-col-gutter-sm ">
-        <div v-for="(item, index) in items" :key="index" class="col-md-2-4 col-sm-6 col-xs-12">
-          <q-item :style="`background-color: ${item.color}`" class="q-pa-none">
+  <div class="row q-col-gutter-sm">
+    <div v-for="(item, index) in items" :key="index" class="col-3">
+      <q-card class="shadow-2 rounded-xl full-width" :style="`background-color: ${item.color}`">
+        <q-card-section class="q-pa-none">
+          <q-item>
             <q-item-section class=" q-pa-md q-ml-none  text-white">
               <q-item-label class="text-white text-h6 text-weight-bolder">{{ item.value }}</q-item-label>
               <q-item-label>{{ item.title }}</q-item-label>
@@ -12,16 +12,15 @@
               <q-icon :name="item.icon" color="white" size="44px"></q-icon>
             </q-item-section>
           </q-item>
-        </div>
-      </div>
-    </q-card-section>
-  </q-card>
+        </q-card-section>
+      </q-card>
+    </div>
+  </div>
 </template>
 
 <script>
-
 export default {
-  name: "QueueSummary",
+  name: "QueueStatsCards",
   props: {
     pendingQueues: {
       type: Array,
@@ -85,8 +84,5 @@ export default {
 </script>
 
 <style scoped>
-.col-md-2-4 {
-  flex: 0 0 calc(100% / 4); /* Divide the row into 5 parts */
-  max-width: calc(100% / 4); /* Ensure it fits in one row */
-}
+
 </style>
