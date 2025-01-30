@@ -4,15 +4,16 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"github.com/oshankkumar/taskqueue-go"
-	"github.com/redis/go-redis/v9"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/oshankkumar/taskqueue-go"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func TestInlineQueueEnqueue(t *testing.T) {
-	t.Setenv("REDIS_ADDR", "localhost:6379")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		t.Skip("skipping test since REDIS_ADDR is not set")
