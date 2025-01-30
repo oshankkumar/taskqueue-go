@@ -1,9 +1,8 @@
 package redis
 
 import (
+	"bytes"
 	"context"
-	"crypto/rand"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -13,7 +12,21 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func TestInlineQueueEnqueue(t *testing.T) {
+const testPayload = `{
+	"guid": "f2d64811-bb24-465f-8a89-86c2e84938bd",
+    "isActive": false,
+    "balance": "$3,822.26",
+    "picture": "http://placehold.it/32x32",
+    "age": 30,
+    "eyeColor": "brown",
+    "name": "Robin Hernandez",
+    "gender": "female",
+    "company": "CAPSCREEN",
+    "email": "robinhernandez@capscreen.com",
+    "phone": "+1 (823) 515-3571"
+}`
+
+func TestRedisQueueEnqueue(t *testing.T) {
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		t.Skip("skipping test since REDIS_ADDR is not set")
@@ -21,34 +34,16 @@ func TestInlineQueueEnqueue(t *testing.T) {
 
 	client := redis.NewClient(&redis.Options{Addr: redisAddr})
 
-	q := NewInlineQueue(client)
+	q := NewQueue(client, WithCompletedJobTTL(time.Minute*30))
 
-	var payload [32]byte
-	if _, err := rand.Read(payload[:]); err != nil {
+	job := taskqueue.NewJob()
+	job.Payload = []byte(testPayload)
+
+	if err := q.Enqueue(context.Background(), job, &taskqueue.EnqueueOptions{QueueName: "test_redis_queue"}); err != nil {
 		t.Fatal(err)
 	}
 
-	now := time.Now()
-
-	job := &taskqueue.Job{
-		ID:            "test-inline-job-1",
-		QueueName:     "test_inline_queue",
-		Payload:       payload[:],
-		CreatedAt:     now,
-		StartedAt:     now,
-		UpdatedAt:     now,
-		Attempts:      2,
-		FailureReason: taskqueue.ErrJobNotFound.Error(),
-		Status:        taskqueue.JobStatusWaiting,
-		ProcessedBy:   "test-worker-1",
-	}
-
-	err := q.Enqueue(context.Background(), job, &taskqueue.EnqueueOptions{QueueName: "test_inline_queue"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	jobs, err := q.Dequeue(context.Background(), &taskqueue.DequeueOptions{QueueName: "test_inline_queue"}, 1)
+	jobs, err := q.Dequeue(context.Background(), &taskqueue.DequeueOptions{QueueName: "test_redis_queue"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,18 +52,53 @@ func TestInlineQueueEnqueue(t *testing.T) {
 		t.Fatal("expected 1 job")
 	}
 
-	fmt.Printf("%#v\n", jobs[0])
+	now := time.Now()
+	deqJob := jobs[0]
 
-	if err := q.Nack(context.Background(), &taskqueue.Job{
-		ID:            "test-inline-job-1",
-		QueueName:     "test_inline_queue",
-		StartedAt:     now,
-		UpdatedAt:     now,
-		Attempts:      5,
-		FailureReason: "something bad happened",
-		Status:        taskqueue.JobStatusCompleted,
-		ProcessedBy:   "test-worker-4",
-	}, &taskqueue.NackOptions{QueueName: "test_inline_queue", MaxAttemptsExceeded: true}); err != nil {
+	if !bytes.Equal(deqJob.Payload, job.Payload) {
+		t.Fatal("expected payload to be equal to test payload")
+	}
+
+	if deqJob.ID != job.ID {
+		t.Fatal("expected ID to be equal to job ID")
+	}
+
+	deqJob.Status = taskqueue.JobStatusCompleted
+	deqJob.UpdatedAt = now
+	deqJob.Attempts = 3
+	deqJob.ProcessedBy = "test-worker-0"
+
+	if err := q.Ack(context.Background(), deqJob, &taskqueue.AckOptions{QueueName: "test_redis_queue"}); err != nil {
 		t.Fatal(err)
+	}
+
+	job, err = q.getJob(context.Background(), deqJob.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if job.Status != taskqueue.JobStatusCompleted {
+		t.Fatal("expected job to be completed")
+	}
+
+	if job.UpdatedAt.Unix() != now.Unix() {
+		t.Fatalf("expected job.Updated = %s got = %s", now, job.UpdatedAt)
+	}
+
+	if job.ProcessedBy != "test-worker-0" {
+		t.Fatal("expected job to be processed by test-worker-0")
+	}
+
+	if job.Attempts != 3 {
+		t.Fatal("expected job to have 3 attempts")
+	}
+
+	dur, err := client.TTL(context.Background(), redisKeyJob(taskqueue.DefaultNameSpace, deqJob.ID)).Result()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dur != time.Minute*30 {
+		t.Fatal("expected job to have a TTL set")
 	}
 }

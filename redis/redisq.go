@@ -26,31 +26,15 @@ var (
 
 func NewQueue(client redis.UniversalClient, opts ...OptFunc) *Queue {
 	opt := &Options{
-		namespace: taskqueue.DefaultNameSpace,
+		namespace:       taskqueue.DefaultNameSpace,
+		completedJobTTL: time.Hour * 24 * 7,
 	}
 	for _, o := range opts {
 		o(opt)
 	}
 	return &Queue{
 		namespace:        opt.namespace,
-		client:           client,
-		enqueueScript:    redis.NewScript(enqueueScriptLuaInline),
-		dequeueScript:    redis.NewScript(dequeueScriptLuaInline),
-		ackScript:        redis.NewScript(ackScriptLuaInline),
-		retryScript:      redis.NewScript(retryScriptLuaInline),
-		moveToDeadScript: redis.NewScript(moveToDeadScriptLuaInline),
-	}
-}
-
-func NewInlineQueue(client redis.UniversalClient, opts ...OptFunc) *Queue {
-	opt := &Options{
-		namespace: taskqueue.DefaultNameSpace,
-	}
-	for _, o := range opts {
-		o(opt)
-	}
-	return &Queue{
-		namespace:        opt.namespace,
+		completedJobTTL:  opt.completedJobTTL,
 		client:           client,
 		enqueueScript:    redis.NewScript(enqueueScriptLuaInline),
 		dequeueScript:    redis.NewScript(dequeueScriptLuaInline),
@@ -62,6 +46,7 @@ func NewInlineQueue(client redis.UniversalClient, opts ...OptFunc) *Queue {
 
 type Queue struct {
 	namespace        string
+	completedJobTTL  time.Duration
 	client           redis.UniversalClient
 	enqueueScript    *redis.Script
 	dequeueScript    *redis.Script
@@ -166,6 +151,7 @@ func (q *Queue) Ack(ctx context.Context, job *taskqueue.Job, opts *taskqueue.Ack
 	}
 	args := [...]interface{}{
 		job.ID,
+		int64(q.completedJobTTL.Seconds()),
 		"queue_name", opts.QueueName,
 		"started_at", job.StartedAt,
 		"updated_at", job.UpdatedAt,

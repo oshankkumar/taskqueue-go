@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -19,10 +20,15 @@ import (
 
 const ns = "taskqueue"
 
+var id = flag.String("id", "", "worker id")
+
 func main() {
+	flag.Parse()
+
 	rc := redis.NewClient(&redis.Options{Addr: ":6379"})
 
 	worker := taskqueue.NewWorker(&taskqueue.WorkerOptions{
+		ID:             *id,
 		Queue:          redisq.NewQueue(rc, redisq.WithNamespace(ns), redisq.WithCompletedJobTTL(time.Hour)),
 		HeartBeater:    redisq.NewHeartBeater(rc, redisq.WithNamespace(ns)),
 		MetricsBackend: redisq.NewMetricsBackend(rc, redisq.WithNamespace(ns)),

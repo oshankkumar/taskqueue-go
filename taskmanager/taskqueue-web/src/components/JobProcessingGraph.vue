@@ -89,6 +89,7 @@ export default {
         {label: 'Last 6 Hours', value: '6h'},
         {label: 'Last 24 Hours', value: '24h'},
         {label: 'Last 2 Days', value: '2d'},
+        {label: 'Last 7 Days', value: '7d'},
       ],
       granularityOptions: [
         {label: '5 Minutes', value: '300'},
@@ -134,7 +135,10 @@ export default {
           startTime = now - 24 * 3600; // Last 24 hours
           break;
         case '2d':
-          startTime = now - 48 * 3600;
+          startTime = now - 2 * 24 * 3600;
+          break;
+        case '7d':
+          startTime = now - 7 * 24 * 3600;
           break;
         default:
           startTime = now - 3600; // Default to last 1 hour

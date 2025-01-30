@@ -21,13 +21,15 @@ func NewMetricsBackend(client redis.UniversalClient, opts ...OptFunc) *MetricsBa
 	return &MetricsBackend{namespace: opt.namespace, client: client}
 }
 
+const truncateDur = 5 * time.Minute
+
 type MetricsBackend struct {
 	namespace string
 	client    redis.UniversalClient
 }
 
 func (m *MetricsBackend) IncrementCounter(ctx context.Context, mt taskqueue.Metric, count int, ts time.Time) error {
-	roundedTs := ts.Truncate(time.Minute)
+	roundedTs := ts.Truncate(truncateDur)
 	roundedTsStr := roundedTs.Format(time.RFC3339)
 
 	hashKey := redisHashKeyCounterMetrics(m.namespace, mt.Name, mt.Labels)
@@ -43,15 +45,13 @@ func (m *MetricsBackend) IncrementCounter(ctx context.Context, mt taskqueue.Metr
 }
 
 func (m *MetricsBackend) QueryRangeCounterValues(ctx context.Context, mt taskqueue.Metric, start, end time.Time) (taskqueue.MetricRangeValue, error) {
-	startRoundedTs, endRoundedTs := start.Truncate(time.Minute), end.Truncate(time.Minute)
-
 	hashKey := redisHashKeyCounterMetrics(m.namespace, mt.Name, mt.Labels)
 	zsetKey := redisZSetKeyCounterMetrics(m.namespace, mt.Name, mt.Labels)
 
 	zz, err := m.client.ZRangeArgsWithScores(ctx, redis.ZRangeArgs{
 		Key:     zsetKey,
-		Start:   startRoundedTs.Unix(),
-		Stop:    endRoundedTs.Unix(),
+		Start:   start.Unix(),
+		Stop:    end.Unix(),
 		ByScore: true,
 	}).Result()
 	if err != nil {
