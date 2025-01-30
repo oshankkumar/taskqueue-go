@@ -1,4 +1,4 @@
-name: build task manager
+name: Build TaskQueue Manager
 
 on:
   push:
