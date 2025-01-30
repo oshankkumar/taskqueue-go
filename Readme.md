@@ -1,5 +1,8 @@
 # TaskQueue-Go
 
+[![GoDoc](https://godoc.org/github.com/oshankkumar/taskqueue-go?status.svg)](https://godoc.org/github.com/oshankkumar/taskqueue-go)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
 **TaskQueue-Go** is a high-performance, distributed task queue library for Go, designed to simplify background job
 processing. With support for multiple queue backends and job storage backends, along with a pluggable architecture, it
 provides a scalable and reliable system for decoupling task execution from your main application logic. The decoupled
@@ -180,10 +183,10 @@ You can implement your own job storage by conforming to the `JobStore` interface
 
 ```go
 type JobStore interface {
-CreateOrUpdate(ctx context.Context, job *Job) error
-GetJob(ctx context.Context, jobID string) (*Job, error)
-DeleteJob(ctx context.Context, jobID string) error
-UpdateJobStatus(ctx context.Context, jobID string, status JobStatus) error
+  CreateOrUpdate(ctx context.Context, job *Job) error
+  GetJob(ctx context.Context, jobID string) (*Job, error)
+  DeleteJob(ctx context.Context, jobID string) error
+  UpdateJobStatus(ctx context.Context, jobID string, status JobStatus) error
 }
 ```
 
