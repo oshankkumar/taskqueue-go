@@ -33,7 +33,6 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
           file: Dockerfile-taskqueue-manager
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
