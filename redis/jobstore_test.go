@@ -95,20 +95,14 @@ func TestStoreLastHeartbeats(t *testing.T) {
 			{
 				Name:        "queue_1",
 				Concurrency: 10,
-				MaxAttempts: 10,
-				Timeout:     time.Minute * 10,
 			},
 			{
 				Name:        "queue_2",
 				Concurrency: 10,
-				MaxAttempts: 10,
-				Timeout:     time.Minute,
 			},
 			{
 				Name:        "queue_2",
 				Concurrency: 10,
-				MaxAttempts: 10,
-				Timeout:     time.Second * 30,
 			},
 		},
 		PID: 12,
