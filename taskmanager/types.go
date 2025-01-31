@@ -48,10 +48,8 @@ type ListActiveWorkersResponse struct {
 }
 
 type QueuesConfig struct {
-	QueueName   string        `json:"queueName"`
-	Concurrency int           `json:"concurrency"`
-	MaxAttempts int           `json:"maxAttempts"`
-	Timeout     time.Duration `json:"timeout"`
+	QueueName   string `json:"queueName"`
+	Concurrency int    `json:"concurrency"`
 }
 
 type ActiveWorker struct {
@@ -60,6 +58,8 @@ type ActiveWorker struct {
 	HeartbeatAt time.Time      `json:"heartbeatAt"`
 	Queues      []QueuesConfig `json:"queues"`
 	PID         int            `json:"pid"`
+	MemoryUsage float64        `json:"memoryUsage"`
+	CPUUsage    float64        `json:"cpuUsage"`
 }
 
 type TogglePendingQueueStatusResponse struct {

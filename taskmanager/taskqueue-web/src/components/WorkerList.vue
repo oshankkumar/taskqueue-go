@@ -50,7 +50,7 @@
             </q-card-section>
 
             <q-card-section>
-              <q-item>
+              <q-item class="stats">
                 <q-item-section>
                   <p class="text-caption">
                     <strong>Started At:</strong>
@@ -67,6 +67,18 @@
                   <p class="text-caption">
                     <strong>Process ID:</strong>
                     {{ worker.pid }}
+                  </p>
+                </q-item-section>
+                <q-item-section>
+                  <p class="text-caption">
+                    <strong>Memory Usage:</strong>
+                    {{ worker.memoryUsage.toFixed(2) }}%
+                  </p>
+                </q-item-section>
+                <q-item-section>
+                  <p class="text-caption">
+                    <strong>CPU Usage:</strong>
+                    {{ worker.cpuUsage.toFixed(2) }}%
                   </p>
                 </q-item-section>
               </q-item>
@@ -118,5 +130,10 @@ export default {
 .worker-list {
   max-height: 400px;
   overflow-y: auto;
+}
+
+.stats p {
+  font-size: 14px;
+  margin: 5px 0;
 }
 </style>

@@ -206,8 +206,6 @@ func (s *Server) listActiveWorkers(w http.ResponseWriter, r *http.Request) {
 			queues = append(queues, QueuesConfig{
 				QueueName:   q.Name,
 				Concurrency: q.Concurrency,
-				MaxAttempts: q.MaxAttempts,
-				Timeout:     q.Timeout,
 			})
 		}
 
@@ -217,6 +215,8 @@ func (s *Server) listActiveWorkers(w http.ResponseWriter, r *http.Request) {
 			HeartbeatAt: hb.HeartbeatAt,
 			Queues:      queues,
 			PID:         hb.PID,
+			MemoryUsage: hb.MemoryUsage,
+			CPUUsage:    hb.CPUUsage,
 		})
 	}
 

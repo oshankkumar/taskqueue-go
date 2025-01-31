@@ -2,7 +2,9 @@ package redis
 
 import (
 	"context"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/oshankkumar/taskqueue-go"
@@ -82,7 +84,7 @@ func (m *MetricsBackend) QueryRangeCounterValues(ctx context.Context, mt taskque
 
 func (m *MetricsBackend) GaugeValue(ctx context.Context, mt taskqueue.Metric) (taskqueue.MetricValue, error) {
 	metricName, labels := mt.Name, mt.Labels
-	key := redisKeyGaugeMetrics(m.namespace, metricName, labels)
+	key := redisZSetKeyGaugeMetrics(m.namespace, metricName, labels)
 
 	result, err := m.client.ZRangeArgsWithScores(ctx, redis.ZRangeArgs{
 		Key:   key,
@@ -121,7 +123,7 @@ func (m *MetricsBackend) GaugeValue(ctx context.Context, mt taskqueue.Metric) (t
 
 func (m *MetricsBackend) RecordGauge(ctx context.Context, mt taskqueue.Metric, value float64, ts time.Time) error {
 	metricName, labels := mt.Name, mt.Labels
-	key := redisKeyGaugeMetrics(m.namespace, metricName, labels)
+	key := redisZSetKeyGaugeMetrics(m.namespace, metricName, labels)
 	score := ts.Unix()
 
 	return m.client.ZAdd(ctx, key, redis.Z{
@@ -132,7 +134,7 @@ func (m *MetricsBackend) RecordGauge(ctx context.Context, mt taskqueue.Metric, v
 
 func (m *MetricsBackend) QueryRangeGaugeValues(ctx context.Context, mt taskqueue.Metric, start, end time.Time) (taskqueue.MetricRangeValue, error) {
 	metricName, labels := mt.Name, mt.Labels
-	key := redisKeyGaugeMetrics(m.namespace, metricName, labels)
+	key := redisZSetKeyGaugeMetrics(m.namespace, metricName, labels)
 
 	result, err := m.client.ZRangeArgsWithScores(ctx, redis.ZRangeArgs{
 		Key:     key,
@@ -170,26 +172,40 @@ func (m *MetricsBackend) QueryRangeGaugeValues(ctx context.Context, mt taskqueue
 	return gaugeRange, nil
 }
 
-func redisKeyGaugeMetrics(ns string, metricName string, labels map[string]string) string {
-	key := ns + ":gauge:" + metricName
-	for k, v := range labels {
-		key += ":" + k + ":" + v
-	}
-	return key
+func redisZSetKeyGaugeMetrics(ns string, metricName string, labels map[string]string) string {
+	return redisKeyPrefixGaugeMetrics(ns, metricName, labels) + ":values"
 }
 
 func redisHashKeyCounterMetrics(ns string, metricName string, labels map[string]string) string {
-	key := ns + ":counter:" + metricName
-	for k, v := range labels {
-		key += ":" + k + ":" + v
-	}
-	return key + ":values"
+	return redisKeyPrefixCounterMetrics(ns, metricName, labels) + ":values"
 }
 
 func redisZSetKeyCounterMetrics(ns string, metricName string, labels map[string]string) string {
-	key := ns + ":counter:" + metricName
-	for k, v := range labels {
-		key += ":" + k + ":" + v
+	return redisKeyPrefixCounterMetrics(ns, metricName, labels) + ":timestamps"
+}
+
+func redisKeyPrefixCounterMetrics(ns string, metricName string, labels map[string]string) string {
+	return ns + ":counter:" + metricName + ":" + joinLabels(labels, ":")
+}
+
+func redisKeyPrefixGaugeMetrics(ns string, metricName string, labels map[string]string) string {
+	return ns + ":gauge:" + metricName + ":" + joinLabels(labels, ":")
+}
+
+func sortedMapKeys(labels map[string]string) []string {
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
 	}
-	return key + ":timestamps"
+	sort.Strings(keys)
+	return keys
+}
+
+func joinLabels(labels map[string]string, sep string) string {
+	keys := sortedMapKeys(labels)
+	tokens := make([]string, 0, len(keys)*2)
+	for _, k := range keys {
+		tokens = append(tokens, k, labels[k])
+	}
+	return strings.Join(tokens, sep)
 }

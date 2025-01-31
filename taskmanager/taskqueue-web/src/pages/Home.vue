@@ -31,7 +31,7 @@
     </div>
 
     <div class="row q-col-gutter-sm q-pa-sm">
-      <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12 q-pa-sm">
+      <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 q-pa-sm">
         <worker-list :workers="activeWorkers" @refresh="fetchActiveWorkers"/>
       </div>
     </div>

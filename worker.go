@@ -3,6 +3,8 @@ package taskqueue
 import (
 	"context"
 	"errors"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 	"log/slog"
 	"math"
 	"os"
@@ -313,22 +315,38 @@ func (w *Worker) startHeartBeat(ctx context.Context) {
 		queues = append(queues, HeartbeatQueueData{
 			Name:        h.queueName,
 			Concurrency: h.jobOptions.Concurrency,
-			MaxAttempts: h.jobOptions.MaxAttempts,
-			Timeout:     h.jobOptions.Timeout,
 		})
 	}
 
 	w.internalLogger.Info("starting heartbeat loop")
 
-	if err := w.heartBeater.SendHeartbeat(ctx, HeartbeatData{
-		WorkerID:    w.id,
-		StartedAt:   w.startedAt,
-		HeartbeatAt: time.Now(),
-		Queues:      queues,
-		PID:         pid,
-	}); err != nil {
-		w.errorHandler(err)
+	sendHearBeat := func() {
+		var memUsed float64
+		memStat, err := mem.VirtualMemoryWithContext(ctx)
+		if err == nil {
+			memUsed = memStat.UsedPercent
+		}
+
+		var cpuUsed float64
+		cpuStat, err := cpu.PercentWithContext(ctx, 0, false)
+		if err == nil {
+			cpuUsed = cpuStat[0]
+		}
+
+		if err := w.heartBeater.SendHeartbeat(ctx, HeartbeatData{
+			WorkerID:    w.id,
+			StartedAt:   w.startedAt,
+			HeartbeatAt: time.Now(),
+			Queues:      queues,
+			PID:         pid,
+			MemoryUsage: memUsed,
+			CPUUsage:    cpuUsed,
+		}); err != nil {
+			w.errorHandler(err)
+		}
 	}
+
+	sendHearBeat()
 
 	heartBeatTicker := time.NewTicker(time.Second * 10)
 	defer heartBeatTicker.Stop()
@@ -337,21 +355,13 @@ func (w *Worker) startHeartBeat(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second*5)
-			defer cancel()
 			if err := w.heartBeater.RemoveHeartbeat(ctx, w.id); err != nil {
 				w.errorHandler(err)
 			}
+			cancel()
 			return
 		case <-heartBeatTicker.C:
-			if err := w.heartBeater.SendHeartbeat(ctx, HeartbeatData{
-				WorkerID:    w.id,
-				StartedAt:   w.startedAt,
-				HeartbeatAt: time.Now(),
-				Queues:      queues,
-				PID:         pid,
-			}); err != nil {
-				w.errorHandler(err)
-			}
+			sendHearBeat()
 		}
 	}
 }
@@ -459,8 +469,6 @@ func (w *Worker) monitorQueues(ctx context.Context) {
 type HeartbeatQueueData struct {
 	Name        string
 	Concurrency int
-	MaxAttempts int
-	Timeout     time.Duration
 }
 
 type HeartbeatData struct {
@@ -469,6 +477,8 @@ type HeartbeatData struct {
 	HeartbeatAt time.Time
 	Queues      []HeartbeatQueueData
 	PID         int
+	MemoryUsage float64
+	CPUUsage    float64
 }
 
 type HeartBeater interface {

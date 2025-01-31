@@ -16,6 +16,8 @@ type HeartbeatData struct {
 	HeartbeatAt time.Time `redis:"heartbeat_at"`
 	Queues      []byte    `redis:"queues"`
 	PID         int       `redis:"pid"`
+	MemoryUsage float64   `redis:"memory_usage"`
+	CPUUsage    float64   `redis:"cpu_usage"`
 }
 
 func NewHeartBeater(rc redis.UniversalClient, opts ...OptFunc) *Heartbeater {
@@ -47,6 +49,8 @@ func (s *Heartbeater) SendHeartbeat(ctx context.Context, data taskqueue.Heartbea
 		HeartbeatAt: data.HeartbeatAt,
 		Queues:      queuesData,
 		PID:         data.PID,
+		MemoryUsage: data.MemoryUsage,
+		CPUUsage:    data.CPUUsage,
 	}
 
 	_, err = s.client.TxPipelined(ctx, func(p redis.Pipeliner) error {
@@ -107,6 +111,8 @@ func (s *Heartbeater) LastHeartbeats(ctx context.Context) ([]taskqueue.Heartbeat
 			HeartbeatAt: hb.HeartbeatAt,
 			Queues:      queues,
 			PID:         hb.PID,
+			MemoryUsage: hb.MemoryUsage,
+			CPUUsage:    hb.CPUUsage,
 		})
 	}
 
