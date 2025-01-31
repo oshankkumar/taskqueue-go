@@ -3,7 +3,6 @@ package redis
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -26,14 +25,8 @@ const testPayload = `{
     "phone": "+1 (823) 515-3571"
 }`
 
-func TestRedisQueueEnqueue(t *testing.T) {
-	t.Setenv("REDIS_ADDR", "localhost:6379")
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		t.Skip("skipping test since REDIS_ADDR is not set")
-	}
-
-	client := redis.NewClient(&redis.Options{Addr: redisAddr})
+func TestRedisQueue(t *testing.T) {
+	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
 
 	q := NewQueue(client, WithCompletedJobTTL(time.Minute*30))
 
