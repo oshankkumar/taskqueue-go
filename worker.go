@@ -283,6 +283,8 @@ func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) erro
 		return w.queue.Ack(ctx, job, &AckOptions{QueueName: h.queueName})
 	}
 
+	_ = w.metricsBackend.IncrementCounter(ctx, Metric{Name: MetricJobFailedCount}, 1, time.Now())
+
 	nackOpts := &NackOptions{
 		QueueName:           h.queueName,
 		RetryAfter:          h.jobOptions.BackoffFunc(job.Attempts),
@@ -479,6 +481,7 @@ const (
 	MetricPendingQueueSize  = "pending_queue_size"
 	MetricDeadQueueSize     = "dead_queue_size"
 	MetricJobProcessedCount = "job_processed_count"
+	MetricJobFailedCount    = "job_failed_count"
 )
 
 type MetricRangeValue struct {

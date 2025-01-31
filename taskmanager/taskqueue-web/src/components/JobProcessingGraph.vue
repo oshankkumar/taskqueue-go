@@ -6,7 +6,7 @@
           <q-icon color="blue" name="fas fa-chart-line" size="44px"/>
         </q-item-section>
         <q-item-section>
-          <div class="text-h6">Job Processed</div>
+          <div class="text-h6">Job Processing Metrics</div>
         </q-item-section>
         <q-item-section side>
           <q-select
@@ -29,9 +29,20 @@
             @update:model-value="updateMetrics"
           />
         </q-item-section>
+        <q-item-section side>
+          <q-btn
+            flat
+            dense
+            color="primary"
+            icon="refresh"
+            label="Refresh"
+            @click="updateMetrics"
+            class="q-ml-auto"
+          />
+        </q-item-section>
       </q-item>
     </q-card-section>
-    <q-card-section>
+    <q-card-section class="q-pa-none">
       <v-chart :option="chartOptions" class="chart-container" autoresize/>
     </q-card-section>
   </q-card>
@@ -41,11 +52,11 @@
 import {use} from "echarts/core";
 import {CanvasRenderer} from "echarts/renderers";
 import {LineChart} from "echarts/charts";
-import {GridComponent, TitleComponent, TooltipComponent} from "echarts/components";
+import {GridComponent, LegendComponent, TitleComponent, TooltipComponent} from "echarts/components";
 import VChart from "vue-echarts";
 
 // Register ECharts components
-use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, TitleComponent]);
+use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, TitleComponent, LegendComponent]);
 
 export default {
   name: 'JobProcessingGraph',
@@ -58,6 +69,17 @@ export default {
         tooltip: {
           trigger: 'axis',
         },
+        legend: {
+          data: ['Jobs Processed', 'Jobs Failed'],
+          textStyle: {
+            color: '#333', // Ensure legend text is readable
+          },
+          itemStyle: {
+            color: (name) => {
+              return name === 'Jobs Processed' ? '#42A5F5' : '#F44336';
+            },
+          },
+        },
         xAxis: {
           type: 'category',
           data: [],
@@ -67,19 +89,24 @@ export default {
         },
         yAxis: {
           type: 'value',
-          name: 'Jobs Processed',
+          name: 'Count',
         },
         series: [
           {
+            name: 'Jobs Processed',
             data: [],
             type: 'line',
             smooth: true,
-            areaStyle: {
-              color: 'rgba(66, 165, 245, 0.2)',
-            },
-            lineStyle: {
-              color: '#42A5F5',
-            },
+            areaStyle: {color: 'rgba(66, 165, 245, 0.2)'},
+            lineStyle: {color: '#42A5F5'},
+          },
+          {
+            name: 'Jobs Failed',
+            data: [],
+            type: 'line',
+            smooth: true,
+            areaStyle: {color: 'rgba(244, 67, 54, 0.2)'},
+            lineStyle: {color: '#F44336'},
           },
         ],
       },
@@ -102,17 +129,28 @@ export default {
   },
   methods: {
     async fetchMetrics(startTime, endTime, step) {
+      const metricJobProcessedCount = "job_processed_count"
+      const metricsJobFailedCount = "job_failed_count"
+
       this.loading = true;
       try {
-        const {values} = await this.$taskManagerClient.fetchJobProcessedMetrics(startTime, endTime, step);
-        const labels = values.map(item => new Date(item.timestamp * 1000).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit'
-        }));
-        const data = values.map(item => item.value);
+        const [processedResponse, failedResponse] = await Promise.all([
+          this.$taskManagerClient.queryMetricsRange(metricJobProcessedCount, startTime, endTime, step),
+          this.$taskManagerClient.queryMetricsRange(metricsJobFailedCount, startTime, endTime, step),
+        ]);
+
+        const processedData = processedResponse.values;
+        const failedData = failedResponse.values;
+
+        const labels = processedData.map(item =>
+          new Date(item.timestamp * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+        );
+        const processedValues = processedData.map(item => item.value);
+        const failedValues = failedData.map(item => item.value);
 
         this.chartOptions.xAxis.data = labels;
-        this.chartOptions.series[0].data = data;
+        this.chartOptions.series[0].data = processedValues;
+        this.chartOptions.series[1].data = failedValues;
       } catch (error) {
         console.error('Error fetching metrics:', error);
       } finally {

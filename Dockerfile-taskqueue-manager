@@ -48,6 +48,6 @@ COPY --from=frontend-builder /app/frontend/dist/spa/ ./frontend/
 # Expose the service port
 EXPOSE 8080
 
-ENV WEB_STATIC_DIR '/app/frontend/'
+ENV WEB_STATIC_DIR='/app/frontend/'
 # Command to run the service
 ENTRYPOINT ["/app/taskqueue-manager"]

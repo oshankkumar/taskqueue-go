@@ -81,6 +81,7 @@ type MetricValue struct {
 }
 
 type MetricsQueryParam struct {
+	Name  string
 	Start time.Time
 	End   time.Time
 	Step  time.Duration
