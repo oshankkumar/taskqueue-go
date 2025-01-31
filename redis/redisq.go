@@ -165,10 +165,10 @@ func (q *Queue) Ack(ctx context.Context, job *taskqueue.Job, opts *taskqueue.Ack
 }
 
 func (q *Queue) Nack(ctx context.Context, job *taskqueue.Job, opts *taskqueue.NackOptions) error {
-	if opts.MaxAttemptsExceeded {
-		return q.moveToDead(ctx, job, opts)
+	if opts.ShouldRetry {
+		return q.retry(ctx, job, opts)
 	}
-	return q.retry(ctx, job, opts)
+	return q.moveToDead(ctx, job, opts)
 }
 
 func (q *Queue) moveToDead(ctx context.Context, job *taskqueue.Job, opts *taskqueue.NackOptions) error {

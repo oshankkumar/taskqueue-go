@@ -27,6 +27,7 @@ const testPayload = `{
 }`
 
 func TestRedisQueueEnqueue(t *testing.T) {
+	t.Setenv("REDIS_ADDR", "localhost:6379")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		t.Skip("skipping test since REDIS_ADDR is not set")
@@ -35,6 +36,8 @@ func TestRedisQueueEnqueue(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: redisAddr})
 
 	q := NewQueue(client, WithCompletedJobTTL(time.Minute*30))
+
+	client.Del(context.Background(), redisKeyPendingQueue(taskqueue.DefaultNameSpace, "test_redis_queue"))
 
 	job := taskqueue.NewJob()
 	job.Payload = []byte(testPayload)
@@ -60,7 +63,11 @@ func TestRedisQueueEnqueue(t *testing.T) {
 	}
 
 	if deqJob.ID != job.ID {
-		t.Fatal("expected ID to be equal to job ID")
+		t.Fatalf("expected ID to be equal to job ID, expected: %s got: %s", job.ID, deqJob.ID)
+	}
+
+	if deqJob.Status != taskqueue.JobStatusActive {
+		t.Error("expected status to be active after dequeue got:", deqJob.Status)
 	}
 
 	deqJob.Status = taskqueue.JobStatusCompleted

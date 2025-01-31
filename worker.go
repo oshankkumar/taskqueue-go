@@ -3,13 +3,15 @@ package taskqueue
 import (
 	"context"
 	"errors"
-	"github.com/shirou/gopsutil/v4/cpu"
-	"github.com/shirou/gopsutil/v4/mem"
+	"fmt"
 	"log/slog"
 	"math"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 type Handler interface {
@@ -255,6 +257,19 @@ func (w *Worker) dequeueJob(ctx context.Context, jobCh chan<- *Job, h *queueHand
 	}
 }
 
+type ErrSkipRetry struct {
+	Err        error
+	SkipReason string
+}
+
+func (e ErrSkipRetry) Error() string {
+	return fmt.Sprintf("skip retry: %s, reason: %s", e.Err, e.SkipReason)
+}
+
+func (e ErrSkipRetry) Unwrap() error {
+	return e.Err
+}
+
 func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), h.jobOptions.Timeout)
 	defer cancel()
@@ -271,16 +286,17 @@ func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) erro
 	job.UpdatedAt = time.Now()
 	job.Attempts++
 
+	var skipErr ErrSkipRetry
 	switch {
 	case jobErr == nil:
 		job.Status = JobStatusCompleted
-	case job.Attempts >= h.jobOptions.MaxAttempts:
+	case job.Attempts >= h.jobOptions.MaxAttempts, errors.As(jobErr, &skipErr):
 		job.Status = JobStatusDead
 	default:
 		job.Status = JobStatusFailed
 	}
 
-	if jobErr == nil {
+	if job.Status == JobStatusCompleted {
 		_ = w.metricsBackend.IncrementCounter(ctx, Metric{Name: MetricJobProcessedCount}, 1, time.Now())
 		return w.queue.Ack(ctx, job, &AckOptions{QueueName: h.queueName})
 	}
@@ -288,9 +304,9 @@ func (w *Worker) processJob(ctx context.Context, job *Job, h *queueHandler) erro
 	_ = w.metricsBackend.IncrementCounter(ctx, Metric{Name: MetricJobFailedCount}, 1, time.Now())
 
 	nackOpts := &NackOptions{
-		QueueName:           h.queueName,
-		RetryAfter:          h.jobOptions.BackoffFunc(job.Attempts),
-		MaxAttemptsExceeded: job.Attempts >= h.jobOptions.MaxAttempts,
+		QueueName:   h.queueName,
+		RetryAfter:  h.jobOptions.BackoffFunc(job.Attempts),
+		ShouldRetry: job.Status == JobStatusFailed,
 	}
 
 	return w.queue.Nack(ctx, job, nackOpts)
@@ -348,7 +364,7 @@ func (w *Worker) startHeartBeat(ctx context.Context) {
 
 	sendHearBeat()
 
-	heartBeatTicker := time.NewTicker(time.Second * 10)
+	heartBeatTicker := time.NewTicker(heartBeatInterval)
 	defer heartBeatTicker.Stop()
 
 	for {
@@ -465,6 +481,8 @@ func (w *Worker) monitorQueues(ctx context.Context) {
 		}
 	}
 }
+
+const heartBeatInterval = time.Second * 30
 
 type HeartbeatQueueData struct {
 	Name        string
