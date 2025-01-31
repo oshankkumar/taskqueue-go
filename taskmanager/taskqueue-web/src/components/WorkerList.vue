@@ -44,9 +44,7 @@
               <div class="row items-center">
                 <div class="col">
                   <div class="text-h6">{{ worker.workerID }}</div>
-                  <q-badge color="green" align="left">
-                    Active
-                  </q-badge>
+                  <q-badge color="green">Active</q-badge>
                 </div>
               </div>
             </q-card-section>

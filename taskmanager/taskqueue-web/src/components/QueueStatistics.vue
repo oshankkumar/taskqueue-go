@@ -11,7 +11,7 @@
       </q-item>
     </q-card-section>
     <q-card-section>
-      <v-chart :option="chartOptions" class="chart-container"/>
+      <v-chart :option="chartOptions" class="chart-container" autoresize/>
     </q-card-section>
   </q-card>
 </template>

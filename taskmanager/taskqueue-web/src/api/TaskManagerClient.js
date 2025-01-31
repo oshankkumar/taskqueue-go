@@ -27,10 +27,11 @@ class TaskManagerClient {
     }
   }
 
-  async fetchJobProcessedMetrics(start, end, step) {
+  async queryMetricsRange(metric, start, end, step) {
     try {
-      const response = await this.api.get('/metrics/jobs/processed', {
+      const response = await this.api.get('/metrics-range', {
         params: {
+          name: metric,
           start: start,
           end: end,
           step: step,

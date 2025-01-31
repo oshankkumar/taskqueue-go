@@ -98,7 +98,7 @@ func (s *Server) initHandler() http.Handler {
 	mux.Handle("POST /api/pending-queues/{queue_name}/toggle-status", http.HandlerFunc(s.togglePendingQueueStatus))
 	mux.Handle("POST /api/dead-queues/{queue_name}/requeue-all", http.HandlerFunc(s.requeueAllDeadJobs))
 	mux.Handle("DELETE /api/dead-queues/{queue_name}/delete-all", http.HandlerFunc(s.deleteAllDeadJobs))
-	mux.Handle("GET /api/metrics/jobs/processed", http.HandlerFunc(s.jobProcessedMetrics))
+	mux.Handle("GET /api/metrics-range", http.HandlerFunc(s.metricsRange))
 	mux.Handle("GET /", http.FileServer(http.Dir(s.webStaticDir)))
 
 	handler := cors.AllowAll().Handler(mux)
@@ -116,9 +116,8 @@ func (s *Server) withLog(h http.Handler) http.Handler {
 	})
 }
 
-// GET /api/metrics/jobs/processed
-func (s *Server) jobProcessedMetrics(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
+// GET /api/metrics-range
+func (s *Server) metricsRange(w http.ResponseWriter, r *http.Request) {
 	query, err := getMetricsRangeQueryParam(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -127,12 +126,12 @@ func (s *Server) jobProcessedMetrics(w http.ResponseWriter, r *http.Request) {
 
 	mt, err := s.metricsBackend.QueryRangeCounterValues(
 		r.Context(),
-		taskqueue.Metric{Name: taskqueue.MetricJobProcessedCount},
+		taskqueue.Metric{Name: query.Name},
 		query.Start,
 		query.End,
 	)
 	if err != nil {
-		http.Error(w, "Failed to query pending queues "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to query metrics "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -528,6 +527,11 @@ func getPagination(r *http.Request) (taskqueue.Pagination, error) {
 }
 
 func getMetricsRangeQueryParam(r *http.Request) (MetricsQueryParam, error) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		return MetricsQueryParam{}, errors.New("name is required")
+	}
+
 	startTimeStr := r.URL.Query().Get("start")
 
 	startTime := time.Now().Add(-time.Hour * 24)
@@ -562,6 +566,7 @@ func getMetricsRangeQueryParam(r *http.Request) (MetricsQueryParam, error) {
 	fmt.Println(startTime, endTime, stepInt)
 
 	return MetricsQueryParam{
+		Name:  name,
 		Start: startTime,
 		End:   endTime,
 		Step:  time.Duration(stepInt) * time.Second,
