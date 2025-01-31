@@ -127,10 +127,10 @@ func (q *QueueWithExternalJobStorage) Nack(ctx context.Context, job *taskqueue.J
 		return err
 	}
 
-	if opts.MaxAttemptsExceeded {
-		return q.nackDead(ctx, job.ID, opts)
+	if opts.ShouldRetry {
+		return q.nack(ctx, job.ID, opts)
 	}
-	return q.nack(ctx, job.ID, opts)
+	return q.nackDead(ctx, job.ID, opts)
 }
 
 func (q *QueueWithExternalJobStorage) nackDead(ctx context.Context, jobID string, opts *taskqueue.NackOptions) error {

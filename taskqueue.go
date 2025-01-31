@@ -126,9 +126,9 @@ type AckOptions struct {
 }
 
 type NackOptions struct {
-	QueueName           string
-	RetryAfter          time.Duration
-	MaxAttemptsExceeded bool
+	QueueName   string
+	RetryAfter  time.Duration
+	ShouldRetry bool
 }
 
 type Acker interface {

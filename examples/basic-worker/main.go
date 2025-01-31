@@ -60,7 +60,7 @@ func main() {
 
 		fmt.Printf("job processed queue_name=email_queue job_id=%s\n", job.ID)
 		return nil
-	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(1))
+	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(4))
 
 	worker.RegisterHandler("payment_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
 		time.Sleep(time.Duration(rand.Intn(2000)) * time.Millisecond)
@@ -72,19 +72,19 @@ func main() {
 		paymentProcessed.Add(1)
 		fmt.Printf("job processed queue_name=payment_queue job_id=%s\n", job.ID)
 		return nil
-	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(1))
+	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(4))
 
 	worker.RegisterHandler("push_notification_queue", taskqueue.HandlerFunc(func(ctx context.Context, job *taskqueue.Job) error {
 		time.Sleep(time.Duration(rand.Intn(2000)) * time.Millisecond)
 
 		if rand.Intn(100) < 30 {
-			return errors.New("something bad happened")
+			return taskqueue.ErrSkipRetry{Err: errors.New("something bad happened"), SkipReason: "Don't want to send outdated notification"}
 		}
 
 		notifyProcessed.Add(1)
 		fmt.Printf("job processed queue_name=push_notification_queue job_id=%s\n", job.ID)
 		return nil
-	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(1))
+	}), taskqueue.WithConcurrency(8), taskqueue.WithMaxAttempts(4))
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()

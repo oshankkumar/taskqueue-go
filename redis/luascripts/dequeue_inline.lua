@@ -23,6 +23,12 @@ redis.call("ZADD", queueKey, "XX", newScore, jobID)
 
 -- Fetch job details from the hash
 local jobKey = jobKeyPrefix .. jobID
+
+local fieldsAdded = redis.call("HSET", jobKey, "status", "Active")
+if fieldsAdded ~= 0 then
+    return { err = "Failed in updating the job status to Active" }
+end
+
 local jobDetails = redis.call("HGETALL", jobKey)
 
 -- Return the job ID and its details
