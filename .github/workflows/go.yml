@@ -31,3 +31,6 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+      env:
+        REDIS_ADDR: localhost:6379
+

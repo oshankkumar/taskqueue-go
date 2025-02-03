@@ -74,8 +74,6 @@ func TestStoreCreateOrUpdate(t *testing.T) {
 	if got.Status != taskqueue.JobStatusCompleted {
 		t.Errorf("job status does not match the expected one. Diff:\n%s", cmp.Diff(job, got))
 	}
-
-	t.Log("Job updated", got.UpdatedAt)
 }
 
 func TestStoreLastHeartbeats(t *testing.T) {
@@ -132,51 +130,54 @@ func TestMetricsBackend(t *testing.T) {
 	mb := NewMetricsBackend(client, WithNamespace("test"))
 	now := time.Now()
 
+	gaugeKey := redisZSetKeyGaugeMetrics("test", taskqueue.MetricPendingQueueSize, map[string]string{"name": "test_redis_queue"})
+	client.Del(context.Background(), gaugeKey)
+
 	if err := mb.RecordGauge(context.Background(), taskqueue.Metric{
 		Name:   taskqueue.MetricPendingQueueSize,
-		Labels: map[string]string{"name": "email_queue"},
+		Labels: map[string]string{"name": "test_redis_queue"},
 	}, 45, now.Add(-time.Minute*120)); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := mb.RecordGauge(context.Background(), taskqueue.Metric{
 		Name:   taskqueue.MetricPendingQueueSize,
-		Labels: map[string]string{"name": "email_queue"},
+		Labels: map[string]string{"name": "test_redis_queue"},
 	}, 60, now.Add(-time.Minute*60)); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := mb.RecordGauge(context.Background(), taskqueue.Metric{
 		Name:   taskqueue.MetricPendingQueueSize,
-		Labels: map[string]string{"name": "email_queue"},
+		Labels: map[string]string{"name": "test_redis_queue"},
 	}, 45, now.Add(-time.Minute*45)); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := mb.RecordGauge(context.Background(), taskqueue.Metric{
 		Name:   taskqueue.MetricPendingQueueSize,
-		Labels: map[string]string{"name": "email_queue"},
+		Labels: map[string]string{"name": "test_redis_queue"},
 	}, 32, now.Add(-time.Minute*30)); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := mb.RecordGauge(context.Background(), taskqueue.Metric{
 		Name:   taskqueue.MetricPendingQueueSize,
-		Labels: map[string]string{"name": "email_queue"},
+		Labels: map[string]string{"name": "test_redis_queue"},
 	}, 2, now.Add(-time.Minute*15)); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := mb.RecordGauge(context.Background(), taskqueue.Metric{
 		Name:   taskqueue.MetricPendingQueueSize,
-		Labels: map[string]string{"name": "email_queue"},
+		Labels: map[string]string{"name": "test_redis_queue"},
 	}, 80, now); err != nil {
 		t.Fatal(err)
 	}
 
 	gv, err := mb.QueryRangeGaugeValues(context.Background(), taskqueue.Metric{
 		Name:   taskqueue.MetricPendingQueueSize,
-		Labels: map[string]string{"name": "email_queue"},
+		Labels: map[string]string{"name": "test_redis_queue"},
 	}, now.Add(-time.Minute*120), now)
 	if err != nil {
 		t.Fatal(err)
