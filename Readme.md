@@ -6,6 +6,8 @@
 ![Build Status](https://github.com/oshankkumar/taskqueue-go/actions/workflows/build_taskmanager.yml/badge.svg?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/oshankkumar/taskqueue-go)](https://goreportcard.com/report/github.com/oshankkumar/taskqueue-go)
 
+<img src="https://raw.githubusercontent.com/oshankkumar/taskqueue-go/refs/heads/main/taskmanager/taskqueue-web/public/icons/favicon.svg" width="100">
+
 **TaskQueue-Go** is a high-performance, distributed task queue library for Go, designed to simplify background job
 processing. With support for multiple queue backends and job storage backends, along with a pluggable architecture, it
 provides a scalable and reliable system for decoupling task execution from your main application logic. The decoupled
