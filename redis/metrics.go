@@ -31,15 +31,14 @@ type MetricsBackend struct {
 }
 
 func (m *MetricsBackend) IncrementCounter(ctx context.Context, mt taskqueue.Metric, count int, ts time.Time) error {
-	roundedTs := ts.Truncate(truncateDur)
-	roundedTsStr := roundedTs.Format(time.RFC3339)
+	roundedTs := ts.Truncate(truncateDur).Unix()
 
 	hashKey := redisHashKeyCounterMetrics(m.namespace, mt.Name, mt.Labels)
 	zsetKey := redisZSetKeyCounterMetrics(m.namespace, mt.Name, mt.Labels)
 
 	_, err := m.client.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-		pipe.HIncrBy(ctx, hashKey, roundedTsStr, int64(count))
-		pipe.ZAdd(ctx, zsetKey, redis.Z{Score: float64(roundedTs.Unix()), Member: roundedTsStr})
+		pipe.HIncrBy(ctx, hashKey, strconv.FormatInt(roundedTs, 10), int64(count))
+		pipe.ZAdd(ctx, zsetKey, redis.Z{Score: float64(roundedTs), Member: roundedTs})
 		return nil
 	})
 
@@ -62,20 +61,31 @@ func (m *MetricsBackend) QueryRangeCounterValues(ctx context.Context, mt taskque
 
 	result := taskqueue.MetricRangeValue{Metric: mt}
 
-	for _, z := range zz {
+	timestamps := make([]string, len(zz))
+	for i, z := range zz {
 		member, _ := z.Member.(string)
-		if member == "" {
+		timestamps[i] = member
+	}
+
+	vals, err := m.client.HMGet(ctx, hashKey, timestamps...).Result()
+	if err != nil {
+		return taskqueue.MetricRangeValue{}, err
+	}
+
+	for i, val := range vals {
+		strVal, ok := val.(string)
+		if !ok {
 			continue
 		}
 
-		val, err := m.client.HGet(ctx, hashKey, member).Int()
+		v, err := strconv.Atoi(strVal)
 		if err != nil {
 			continue
 		}
 
 		result.Values = append(result.Values, taskqueue.MetricValue{
-			TimeStamp: time.Unix(int64(z.Score), 0),
-			Value:     float64(val),
+			TimeStamp: time.Unix(int64(zz[i].Score), 0),
+			Value:     float64(v),
 		})
 	}
 
