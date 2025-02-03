@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+        width="200"
+        height="200"
+        viewBox="0 0 200 200"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+>
+    <!-- Background with Refined Gradient -->
+    <rect width="200" height="200" rx="32" fill="url(#bgGradient)" />
+
+    <!-- Modern Abstract Queue Representation -->
+    <g transform="translate(40,50)" fill="#FFF">
+        <rect x="0" y="30" width="40" height="40" rx="10" fill="#BBDEFB" />
+        <rect x="50" y="15" width="40" height="40" rx="10" fill="#64B5F6" />
+        <rect x="100" y="30" width="40" height="40" rx="10" fill="#1976D2" />
+    </g>
+
+    <!-- Task Flow Representation: Subtle Stacked Bars -->
+    <g transform="translate(70,140)" fill="#FFF" opacity="0.9">
+        <rect x="0" y="0" width="60" height="8" rx="4" fill="#BBDEFB" />
+        <rect x="0" y="12" width="50" height="8" rx="4" fill="#64B5F6" />
+        <rect x="0" y="24" width="40" height="8" rx="4" fill="#1976D2" />
+    </g>
+
+    <!-- Gradient Definition with Softer Transitions -->
+    <defs>
+        <linearGradient id="bgGradient" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0B3D91"/>
+            <stop offset="100%" stop-color="#1565C0"/>
+        </linearGradient>
+    </defs>
+</svg>
