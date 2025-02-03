@@ -4,7 +4,9 @@
             <q-header elevated>
                 <q-toolbar>
                     <q-btn flat @click="drawer = !drawer" round dense icon="menu" aria-label="Menu"/>
-                    <q-avatar><img src="icons/favicon.svg" alt="Logo"></q-avatar>
+                    <q-avatar square size="md">
+                        <img src="icons/favicon.svg" alt="Logo">
+                    </q-avatar>
                     <q-toolbar-title @click="this.$router.push('/')">TaskQueue Dashboard</q-toolbar-title>
                     <q-space/>
                     <div class="q-gutter-sm row items-center no-wrap">

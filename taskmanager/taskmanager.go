@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -562,8 +561,6 @@ func getMetricsRangeQueryParam(r *http.Request) (MetricsQueryParam, error) {
 	if err != nil {
 		return MetricsQueryParam{}, err
 	}
-
-	fmt.Println(startTime, endTime, stepInt)
 
 	return MetricsQueryParam{
 		Name:  name,
