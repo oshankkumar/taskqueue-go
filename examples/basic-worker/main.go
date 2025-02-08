@@ -20,12 +20,15 @@ import (
 
 const ns = "taskqueue"
 
-var id = flag.String("id", "", "worker id")
+var (
+	id        = flag.String("id", "", "worker id")
+	redisAddr = flag.String("redis-addr", ":6379", "redis address")
+)
 
 func main() {
 	flag.Parse()
 
-	rc := redis.NewClient(&redis.Options{Addr: ":6379"})
+	rc := redis.NewClient(&redis.Options{Addr: *redisAddr})
 
 	worker := taskqueue.NewWorker(&taskqueue.WorkerOptions{
 		ID:             *id,
@@ -95,7 +98,7 @@ func main() {
 
 	worker.Stop()
 
-	fmt.Printf("taskqueue: shutting down. job processed email = %d payment = %d notification = %d\n",
+	fmt.Printf("taskqueue: shutting down. job processed email=%d payment=%d notification=%d\n",
 		emailProcessed.Load(), paymentProcessed.Load(), notifyProcessed.Load(),
 	)
 }

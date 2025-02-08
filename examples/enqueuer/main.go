@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -15,16 +16,20 @@ import (
 
 const ns = "taskqueue"
 
+var redisAddr = flag.String("redis-addr", ":6379", "Redis address")
+
 func main() {
-	rc := redis.NewClient(&redis.Options{Addr: ":6379"})
+	flag.Parse()
+
+	rc := redis.NewClient(&redis.Options{Addr: *redisAddr})
 
 	enq := redisq.NewQueue(rc, redisq.WithNamespace(ns))
 
-	n1 := queuePaymentJob(enq)
-	n2 := queueEmailJob(enq)
+	n1 := queueEmailJob(enq)
+	n2 := queuePaymentJob(enq)
 	n3 := queueNotificationJob(enq)
 
-	fmt.Println("Jobs Enqueued", "payment", n1, "email", n2, "notification", n3)
+	fmt.Println("Jobs Enqueued", "email", n1, "payment", n2, "notification", n3, "total", n1+n2+n3)
 }
 
 func queueNotificationJob(enq taskqueue.Enqueuer) int {
@@ -55,15 +60,21 @@ func queueNotificationJob(enq taskqueue.Enqueuer) int {
 	return count
 }
 
+type paymentPayload struct {
+	Gateway  string `json:"gateway"`
+	Amount   int    `json:"amount"`
+	WalletID int    `json:"wallet_id"`
+}
+
 func queuePaymentJob(enq taskqueue.Enqueuer) int {
 	count := rand.Intn(100) + 100
 
 	for i := range count {
 		paymentJob := taskqueue.NewJob()
-		_ = paymentJob.JSONMarshalPayload(map[string]interface{}{
-			"gateway":   "razorpay",
-			"amount":    500 + i,
-			"wallet_id": "1",
+		_ = paymentJob.JSONMarshalPayload(paymentPayload{
+			Gateway:  "razorpay",
+			Amount:   rand.Intn(1000) + 10000,
+			WalletID: i,
 		})
 		if err := enq.Enqueue(context.Background(), paymentJob, &taskqueue.EnqueueOptions{
 			QueueName: "payment_queue",

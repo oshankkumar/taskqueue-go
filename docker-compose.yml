@@ -1,15 +1,63 @@
 services:
-  redis:
+  taskqueue-redis:
     image: 'redis:latest'
-    ports:
-      - "6379:6379"
+    init: true
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 3s
 
   taskqueue-manager:
-    image: 'oshank/taskqueue-manager:latest'
+    image: 'oshank/taskqueue-manager:main'
+    init: true
     ports:
       - '8050:8050'
     environment:
-      REDIS_QUEUE_ADDR: 'redis:6379'
-      REDIS_HEARTBEAT_ADDR: 'redis:6379'
+      REDIS_QUEUE_ADDR: 'taskqueue-redis:6379'
+      REDIS_HEARTBEAT_ADDR: 'taskqueue-redis:6379'
+      REDIS_METRICS_BACKEND_ADDR: 'taskqueue-redis:6379'
     depends_on:
-      - redis
+      taskqueue-redis:
+        condition: service_healthy
+
+  example-worker:
+    image: golang:1.23.0
+    init: true
+    deploy:
+      replicas: 5
+    working_dir: /workspace/taskqueue-go
+    command: >
+      bash -c "go build -o /app ./examples/basic-worker &&  /app --redis-addr taskqueue-redis:6379"
+    volumes:
+      - ${PWD}:/workspace/taskqueue-go:ro
+      - go-build-cache:/root/.cache/go-build
+      - go-mod-cache:/go/pkg/mod
+    depends_on:
+      taskqueue-redis:
+        condition: service_healthy
+
+  example-enqueuer:
+    image: golang:1.23.0
+    init: true
+    deploy:
+      replicas: 5
+    working_dir: /workspace/taskqueue-go
+    command: >
+      bash -c "go build -o /app ./examples/enqueuer &&  /app --redis-addr taskqueue-redis:6379"
+    volumes:
+      - ${PWD}:/workspace/taskqueue-go:ro
+      - go-build-cache:/root/.cache/go-build
+      - go-mod-cache:/go/pkg/mod
+    depends_on:
+      taskqueue-redis:
+        condition: service_healthy
+
+networks:
+  default:
+    name: taskqueue
+
+volumes:
+  go-mod-cache:
+  go-build-cache:
