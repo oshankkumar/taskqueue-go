@@ -174,7 +174,7 @@ func (w *Worker) Start(ctx context.Context) {
 	}()
 
 	for _, h := range w.queueHandlers {
-		go w.handleQueue(ctx, h)
+		w.handleQueue(ctx, h)
 	}
 }
 
